@@ -13,14 +13,15 @@ interface SeccionMensajesProps {
 
 // Tiempo relativo legible
 function tiempoRelativo(fechaStr: string): string {
+  if (!fechaStr) return '';
   const ahora = Date.now();
   const fecha = new Date(fechaStr).getTime();
   const diff = Math.floor((ahora - fecha) / 1000);
-  if (diff < 60) return 'ahora mismo';
-  if (diff < 3600) return `hace ${Math.floor(diff / 60)} min`;
-  if (diff < 86400) return `hace ${Math.floor(diff / 3600)} h`;
-  if (diff < 172800) return 'ayer';
-  return new Date(fechaStr).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+  if (diff < 60) return 'ahora';
+  if (diff < 3600) return `${Math.floor(diff / 60)}min`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+  if (diff < 604800) return `${Math.floor(diff / 86400)}d`;
+  return `${Math.floor(diff / 604800)}sem`;
 }
 
 // Avatar con iniciales o imagen
@@ -37,13 +38,17 @@ const AvatarMensaje: FC<{ username: string; avatarUrl?: string | null }> = ({ us
   </div>
 );
 
-const BurbujaMensaje: FC<{ 
-  mensaje: MensajeEvento; 
-  esMio: boolean; 
+export interface MensajeConRespuestas extends MensajeEvento {
+  respuestas: MensajeConRespuestas[];
+}
+
+const ComentarioItem: FC<{ 
+  mensaje: MensajeConRespuestas; 
   onReply: (m: MensajeEvento) => void;
   onLike: (id: string) => Promise<boolean>;
   getLikes: (id: string) => Promise<{count: number, userLiked: boolean}>;
-}> = ({ mensaje, esMio, onReply, onLike, getLikes }) => {
+  isReply?: boolean;
+}> = ({ mensaje, onReply, onLike, getLikes, isReply = false }) => {
   const username = mensaje.profiles?.username ?? 'Usuario';
   const avatarUrl = mensaje.profiles?.avatar_url;
   
@@ -71,46 +76,38 @@ const BurbujaMensaje: FC<{
   };
 
   return (
-    <div className={`flex gap-2.5 ${esMio ? 'flex-row-reverse' : 'flex-row'}`}>
-      <AvatarMensaje username={username} avatarUrl={avatarUrl} />
-      <div className={`flex flex-col gap-1 max-w-[85%] ${esMio ? 'items-end' : 'items-start'}`}>
-        <div className={`flex items-center gap-2 ${esMio ? 'flex-row-reverse' : 'flex-row'}`}>
-          <span className="text-white/60 text-[10px] font-medium">{username}</span>
-          <span className="text-white/35 text-[10px]">{tiempoRelativo(mensaje.created_at)}</span>
-        </div>
-        
-        <div className={`flex flex-col ${esMio ? 'items-end' : 'items-start'}`}>
-          <div
-            className="px-3 py-2 rounded-2xl text-sm text-white leading-relaxed text-pretty relative group"
-            style={
-              esMio
-                ? { background: 'linear-gradient(135deg, #d946ef88, #a855f788)', border: '1px solid rgba(217,70,239,0.3)', borderTopRightRadius: '4px' }
-                : { backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', borderTopLeftRadius: '4px' }
-            }
-          >
-            {mensaje.reply_to_id && (
-              <div className="text-[10px] text-white/50 mb-1 pb-1 border-b border-white/10 flex items-center gap-1">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
-                  <path d="M9 14L4 9l5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v5.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                Respuesta a {mensaje.reply_to?.profiles?.username || 'usuario'}
-              </div>
-            )}
-            {mensaje.contenido}
-            
-            {/* Acciones flotantes */}
-            <div className={`absolute top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ${esMio ? 'right-[calc(100%+8px)] flex-row-reverse' : 'left-[calc(100%+8px)]'}`}>
-              <button onClick={() => onReply(mensaje)} className="p-1 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors" title="Responder">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                  <path d="M3 10h10a8 8 0 0 1 8 8v2M3 10l6 6M3 10l6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
-            </div>
+    <div className={`flex flex-col gap-1 ${isReply ? 'mt-3' : 'mt-5'}`}>
+      <div className="flex gap-2.5">
+        <AvatarMensaje username={username} avatarUrl={avatarUrl} />
+        <div className="flex flex-col flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-white text-xs font-semibold">{username}</span>
+            <span className="text-white/40 text-[10px]">{tiempoRelativo(mensaje.created_at)}</span>
           </div>
           
-          <div className={`flex items-center gap-3 mt-1 px-1 ${esMio ? 'flex-row-reverse' : 'flex-row'}`}>
-            <button onClick={handleLike} className={`flex items-center gap-1 text-[11px] ${userLiked ? 'text-pink-400' : 'text-white/40 hover:text-white/70'} transition-colors`}>
+          <div className="text-sm text-white/90 leading-snug text-pretty mt-0.5 whitespace-pre-wrap break-words">
+            {/* Si ya inyectamos el @username al enviar, evitamos duplicarlo aquí si queremos.
+                Pero como puede tener un reply_to_id directo, usamos regex o simplemente renderizamos. */}
+            {mensaje.contenido.startsWith('@') ? (
+              <>
+                <span className="text-[#a855f7] font-medium">{mensaje.contenido.split(' ')[0]}</span>
+                {' ' + mensaje.contenido.split(' ').slice(1).join(' ')}
+              </>
+            ) : (
+              <>
+                {isReply && mensaje.reply_to?.profiles?.username && (
+                  <span className="text-[#a855f7] mr-1.5 font-medium">@{mensaje.reply_to.profiles.username}</span>
+                )}
+                {mensaje.contenido}
+              </>
+            )}
+          </div>
+          
+          <div className="flex items-center gap-4 mt-1">
+            <button 
+              onClick={handleLike} 
+              className={`flex items-center gap-1 text-[11px] font-medium transition-colors ${userLiked ? 'text-pink-500' : 'text-white/50 hover:text-white/80'}`}
+            >
               {userLiked ? (
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
@@ -122,12 +119,31 @@ const BurbujaMensaje: FC<{
               )}
               {likesCount > 0 && <span>{likesCount}</span>}
             </button>
-            <button onClick={() => onReply(mensaje)} className="text-[11px] text-white/40 hover:text-white/70 transition-colors font-medium">
+            <button 
+              onClick={() => onReply(mensaje)} 
+              className="text-[11px] text-white/50 hover:text-white/80 transition-colors font-medium"
+            >
               Responder
             </button>
           </div>
         </div>
       </div>
+      
+      {/* Respuestas anidadas */}
+      {mensaje.respuestas?.length > 0 && (
+        <div className="pl-10 mt-1 flex flex-col relative before:absolute before:left-4 before:top-0 before:bottom-0 before:w-px before:bg-white/15">
+          {mensaje.respuestas.map(r => (
+            <ComentarioItem 
+              key={r.id} 
+              mensaje={r} 
+              onReply={onReply} 
+              onLike={onLike} 
+              getLikes={getLikes} 
+              isReply={true} 
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 };
@@ -136,10 +152,53 @@ const SeccionMensajes: FC<SeccionMensajesProps> = ({ eventoId, creadorId, onAbri
   const { user } = useAuth();
   const { mensajes, cargando, enviando, error, enviarMensaje, toggleLikeMensaje, getMensajeLikes, resetError } = useMensajesEvento(eventoId);
   const [texto, setTexto] = useState('');
-  const [replyTo, setReplyTo] = useState<MensajeEvento | null>(null);
+  const [replyTo, setReplyTo] = useState<(MensajeEvento & { original_reply_target?: string }) | null>(null);
   const finalRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const esCreador = !!user && user.id === creadorId;
+
+  // Organizar mensajes en árbol
+  const mensajesTree = (() => {
+    const map = new Map<string, MensajeConRespuestas>();
+    const roots: MensajeConRespuestas[] = [];
+
+    mensajes.forEach(m => {
+      // Si el mensaje viene sin contenido (error por RLS en inserciones pasadas) lo ignoramos o manejamos.
+      if (m.id) map.set(m.id, { ...m, respuestas: [] });
+    });
+
+    mensajes.forEach(m => {
+      if (!m.id) return;
+      
+      // Aseguramos que solo tenga 1 nivel de anidación. Si reply_to_id apunta a otro mensaje, 
+      // y ese otro mensaje tiene un reply_to_id, lo aplastamos al padre superior.
+      // Ya estamos haciendo esto al hacer handleReply, pero por si acaso.
+      if (m.reply_to_id) {
+        // En lugar de pushearlo ciegamente, buscamos la raíz si es que existe en el map
+        let padreId = m.reply_to_id;
+        
+        // Recorremos hacia arriba si el padre tiene a su vez un reply_to_id
+        while(map.has(padreId) && map.get(padreId)!.reply_to_id) {
+            padreId = map.get(padreId)!.reply_to_id!;
+        }
+        
+        if (map.has(padreId)) {
+          map.get(padreId)!.respuestas.push(map.get(m.id)!);
+        } else {
+          roots.push(map.get(m.id)!); // fallback
+        }
+      } else {
+        roots.push(map.get(m.id)!);
+      }
+    });
+
+    // Ordenamos las raíces y las respuestas cronológicamente por las dudas
+    roots.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    roots.forEach(r => {
+      r.respuestas.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    });
+
+    return roots;
+  })();
 
   // Scroll al último mensaje nuevo
   useEffect(() => {
@@ -150,6 +209,16 @@ const SeccionMensajes: FC<SeccionMensajesProps> = ({ eventoId, creadorId, onAbri
 
   const handleEnviar = async () => {
     if (!texto.trim()) return;
+    
+    // Si estamos respondiendo, ya hemos prellenado el "@usuario ". 
+    // No hace falta forzarlo en el contenidoFinal si el usuario lo borró conscientemente, 
+    // pero mantenemos replyTo?.id para que la BD mantenga la relación.
+    
+    // Si el texto está vacío o solo contiene el @usuario, evitamos enviarlo (aunque texto.trim() ya filtra vacíos puros)
+    if (replyTo?.profiles?.username && texto.trim() === `@${replyTo.profiles.username}`) {
+       return; 
+    }
+    
     const ok = await enviarMensaje(texto, replyTo?.id);
     if (ok) {
       setTexto('');
@@ -158,7 +227,21 @@ const SeccionMensajes: FC<SeccionMensajesProps> = ({ eventoId, creadorId, onAbri
   };
 
   const handleReply = (mensaje: MensajeEvento) => {
-    setReplyTo(mensaje);
+    // Aplanamos las respuestas a 1 solo nivel: 
+    // Si respondemos a una respuesta, lo enlazamos al comentario original (raíz)
+    const replyTargetId = mensaje.reply_to_id ? mensaje.reply_to_id : mensaje.id;
+    
+    // Guardamos la mención al usuario para mostrarlo en el texto o la UI
+    setReplyTo({ ...mensaje, id: replyTargetId, original_reply_target: mensaje.profiles?.username });
+    
+    // Pre-llenar el input con el @usuario (comportamiento muy común en Instagram)
+    if (mensaje.profiles?.username) {
+      // Si el texto ya tiene contenido, no lo borramos, solo agregamos el @ al inicio si no está
+      if (!texto.includes(`@${mensaje.profiles.username}`)) {
+         setTexto(`@${mensaje.profiles.username} `);
+      }
+    }
+    
     if (inputRef.current) inputRef.current.focus();
   };
 
@@ -258,11 +341,10 @@ const SeccionMensajes: FC<SeccionMensajesProps> = ({ eventoId, creadorId, onAbri
           </div>
         )}
 
-        {!cargando && mensajes.map((m) => (
-          <BurbujaMensaje
+        {!cargando && mensajesTree.map((m) => (
+          <ComentarioItem
             key={m.id}
             mensaje={m}
-            esMio={m.remitente_id === user.id}
             onReply={handleReply}
             onLike={toggleLikeMensaje}
             getLikes={getMensajeLikes}
@@ -291,7 +373,7 @@ const SeccionMensajes: FC<SeccionMensajesProps> = ({ eventoId, creadorId, onAbri
         {replyTo && (
           <div className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2 text-xs text-lavender border border-white/10">
             <span className="truncate flex-1">
-              Respondiendo a <span className="font-semibold text-white">{replyTo.profiles?.username || 'usuario'}</span>: {replyTo.contenido}
+              Respondiendo a <span className="font-semibold text-white">{replyTo.original_reply_target || replyTo.profiles?.username || 'usuario'}</span>
             </span>
             <button onClick={() => setReplyTo(null)} className="ml-2 p-1 hover:text-white transition-colors" title="Cancelar respuesta">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none">

@@ -38,7 +38,7 @@ export function useMensajesEvento(eventoId: string | null): UseMensajesEventoRes
         likes:likes_mensaje(count)
       `)
       .eq('evento_id', eventoId)
-      .order('created_at', { ascending: true })
+      .order('created_at', { ascending: true }) // Dejamos que ascienda en BD y agrupamos en React
       .limit(100);
 
     setCargando(false);
@@ -56,7 +56,9 @@ export function useMensajesEvento(eventoId: string | null): UseMensajesEventoRes
     mensajesProcesados = mensajesProcesados.map(m => {
       if (m.reply_to_id && mensajesMap.has(m.reply_to_id)) {
         const parentMsg = mensajesMap.get(m.reply_to_id);
-        m.reply_to = { profiles: parentMsg?.profiles };
+        if (parentMsg && parentMsg.profiles) {
+           m.reply_to = { profiles: parentMsg.profiles };
+        }
       }
       return m;
     });
@@ -97,12 +99,12 @@ export function useMensajesEvento(eventoId: string | null): UseMensajesEventoRes
             // Evitar duplicados
             if (prev.some((m) => m.id === nuevo.id)) return prev;
             
-            const msgToInsert = { ...nuevo, profiles: perfilData, likes: [{ count: 0 }] };
+            const msgToInsert = { ...nuevo, profiles: perfilData, likes: [{ count: 0 }] } as MensajeEvento;
             
             // Asignar reply_to si corresponde
             if (msgToInsert.reply_to_id) {
               const parentMsg = prev.find(p => p.id === msgToInsert.reply_to_id);
-              if (parentMsg) {
+              if (parentMsg && parentMsg.profiles) {
                 msgToInsert.reply_to = { profiles: parentMsg.profiles };
               }
             }
@@ -150,8 +152,9 @@ export function useMensajesEvento(eventoId: string | null): UseMensajesEventoRes
 
     setEnviando(false);
     if (err) {
-      console.error(err);
-      setError('Error al enviar el mensaje.');
+      console.error('Error enviando comentario:', err);
+      // Extraemos el error del RLS si lo hubiese, u otro motivo
+      setError(`Error al enviar el comentario: ${err.message}`);
       return false;
     }
     return true;
