@@ -1,0 +1,193 @@
+/* stylelint-disable */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Sistema de diseño Cloud UCV - Eventos Universitarios */
+
+@layer base {
+  :root {
+    --radius: 1rem;
+
+    /* Paleta principal Cloud UCV - base oscura púrpura */
+    --background: 258 62% 25%;
+    --foreground: 0 0% 100%;
+
+    /* Superficie de cards: púrpura medio */
+    --card: 258 55% 32%;
+    --card-foreground: 0 0% 100%;
+
+    --popover: 258 55% 32%;
+    --popover-foreground: 0 0% 100%;
+
+    /* Primary: magenta vibrante para elementos activos */
+    --primary: 290 85% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary: púrpura suave para chips inactivos */
+    --secondary: 258 40% 40%;
+    --secondary-foreground: 0 0% 90%;
+
+    /* Muted: superficie ligeramente más oscura */
+    --muted: 258 50% 20%;
+    --muted-foreground: 258 20% 75%;
+
+    /* Accent: lila suave */
+    --accent: 270 30% 45%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 258 40% 40%;
+    --input: 258 40% 40%;
+    --ring: 290 85% 60%;
+
+    /* Charts */
+    --chart-1: 290 85% 60%;
+    --chart-2: 170 70% 50%;
+    --chart-3: 45 90% 60%;
+    --chart-4: 210 80% 60%;
+    --chart-5: 340 80% 60%;
+
+    /* Sidebar */
+    --sidebar-background: 258 62% 20%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 290 85% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 258 50% 35%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 258 40% 35%;
+    --sidebar-ring: 290 85% 60%;
+
+    /* Tokens de color personalizados Cloud UCV */
+    --ucv-purple-dark: 258 62% 20%;
+    --ucv-purple-mid: 258 55% 32%;
+    --ucv-purple-card: 258 50% 28%;
+    --ucv-magenta: 290 85% 60%;
+    --ucv-cyan: 170 70% 50%;
+    --ucv-green: 145 65% 50%;
+    --ucv-nav: 258 65% 18%;
+
+    /* Status colors */
+    --success: 145 65% 42%;
+    --warning: 45 90% 55%;
+    --info: 210 80% 55%;
+    --education-blue: 210 80% 55%;
+    --education-green: 145 65% 42%;
+
+    /* Gradientes */
+    --gradient-primary: linear-gradient(135deg, hsl(290 85% 60%), hsl(210 80% 55%));
+    --gradient-card: linear-gradient(180deg, hsl(258 55% 32%), hsl(258 62% 22%));
+    --gradient-background: linear-gradient(180deg, hsl(258 62% 25%), hsl(258 65% 18%));
+
+    /* Sombras */
+    --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.35);
+    --shadow-hover: 0 8px 32px rgba(0, 0, 0, 0.50);
+  }
+
+  /* Cloud UCV siempre usa tema oscuro */
+  .dark {
+    --background: 258 62% 25%;
+    --foreground: 0 0% 100%;
+    --card: 258 55% 32%;
+    --card-foreground: 0 0% 100%;
+    --popover: 258 55% 32%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 290 85% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 258 40% 40%;
+    --secondary-foreground: 0 0% 90%;
+    --muted: 258 50% 20%;
+    --muted-foreground: 258 20% 75%;
+    --accent: 270 30% 45%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 258 40% 40%;
+    --input: 258 40% 40%;
+    --ring: 290 85% 60%;
+    --chart-1: 290 85% 60%;
+    --chart-2: 170 70% 50%;
+    --chart-3: 45 90% 60%;
+    --chart-4: 210 80% 60%;
+    --chart-5: 340 80% 60%;
+    --sidebar-background: 258 62% 20%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 290 85% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 258 50% 35%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 258 40% 35%;
+    --sidebar-ring: 290 85% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 6px;
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 3px;
+  }
+
+  html {
+    @apply bg-background;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+}
+
+@layer utilities {
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .ucv-bg {
+    background-color: hsl(var(--ucv-purple-dark));
+  }
+
+  .ucv-card-bg {
+    background-color: hsl(var(--ucv-purple-card));
+  }
+
+  .ucv-nav-bg {
+    background-color: hsl(var(--ucv-nav));
+  }
+
+  .text-lavender {
+    color: hsl(258 30% 80%);
+  }
+
+  .badge-culturales {
+    background-color: hsl(290 70% 52%);
+  }
+
+  .badge-academicos {
+    background-color: hsl(210 75% 52%);
+  }
+
+  .badge-deportivos {
+    background-color: hsl(145 60% 42%);
+  }
+  
+  .badge-comerciales {
+    background-color: hsl(35 90% 50%);
+  }
+}
