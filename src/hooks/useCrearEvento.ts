@@ -3,35 +3,13 @@ import { useState } from 'react';
 import { supabase } from '@/db/supabase';
 import type { Categoria } from '@/types/types';
 
-// Imágenes por defecto según categoría
-const imagenesPorCategoria: Record<Exclude<Categoria, 'Todos'>, string> = {
-  Académicos:
-    'https://miaoda-site-img.s3cdn.medo.dev/images/KLing_8d9b64f4-18b1-4183-8598-a0520a34a4e0.jpg',
-  Culturales:
-    'https://miaoda-site-img.s3cdn.medo.dev/images/KLing_8424ffc3-1547-4313-a45c-92085ea3273a.jpg',
-  Deportivos:
-    'https://miaoda-site-img.s3cdn.medo.dev/images/KLing_e25eaacf-0471-4668-aa28-7624012722eb.jpg',
-  Comerciales:
-    'https://miaoda-site-img.s3cdn.medo.dev/images/KLing_a1f9e2b4-5c6d-4e7f-8a9b-0c1d2e3f4a5b.jpg', // Placeholder
-};
-
-// Avatares por defecto según categoría
-const avataresPorCategoria: Record<Exclude<Categoria, 'Todos'>, string[]> = {
-  Académicos: ['#3B82F6', '#06B6D4', '#8B5CF6'],
-  Culturales: ['#D946EF', '#A855F7', '#FF6B9D'],
-  Deportivos: ['#10B981', '#F59E0B', '#34D399'],
-  Comerciales: ['#F59E0B', '#F97316', '#EF4444'],
-};
-
 export interface NuevoEventoInput {
-  titulo: string;
-  categoria: Exclude<Categoria, 'Todos'>;
-  fecha: string;
-  hora: string;
-  descripcion: string;
-  asistentes: number;
-  imagen?: string;
-  direccion?: string;
+  title: string;
+  category: Exclude<Categoria, 'Todos'>;
+  fecha: string;   // date string from input type="date" (YYYY-MM-DD)
+  hora: string;    // time string from input type="time" (HH:MM)
+  description: string;
+  location?: string;
 }
 
 interface UseCrearEventoResult {
@@ -57,28 +35,31 @@ export function useCrearEvento(): UseCrearEventoResult {
       return false;
     }
 
-    const imagenFinal =
-      datos.imagen?.trim() || imagenesPorCategoria[datos.categoria];
-    const avataresFinal = avataresPorCategoria[datos.categoria];
+    // Combinar fecha + hora en un timestamp ISO para start_date
+    const startDateObj = new Date(`${datos.fecha.trim()}T${datos.hora.trim()}`);
+    const startDate = startDateObj.toISOString();
+
+    // Como la base de datos requiere obligatoriamente un end_date, asumiremos
+    // por defecto que los eventos duran 2 horas.
+    const endDateObj = new Date(startDateObj.getTime() + 2 * 60 * 60 * 1000);
+    const endDate = endDateObj.toISOString();
 
     const { error: supabaseError } = await supabase.from('eventos').insert({
-      titulo: datos.titulo.trim(),
-      categoria: datos.categoria,
-      fecha: datos.fecha.trim(),
-      hora: datos.hora.trim(),
-      descripcion: datos.descripcion.trim(),
-      asistentes: datos.asistentes,
-      imagen: imagenFinal,
-      avatares: avataresFinal,
+      id: crypto.randomUUID(),
+      title: datos.title.trim(),
+      category: datos.category,
+      description: datos.description.trim(),
+      start_date: startDate,
+      end_date: endDate,
       user_id: user.id,
-      direccion: datos.direccion?.trim() || null,
-      likes: 0
+      location: datos.location?.trim() || null,
     });
 
     setGuardando(false);
 
     if (supabaseError) {
-      setError('Error al crear el evento. Intenta nuevamente.');
+      console.error('Error Supabase (Insert):', supabaseError);
+      setError(supabaseError.message || 'Error al crear el evento en la base de datos.');
       return false;
     }
 

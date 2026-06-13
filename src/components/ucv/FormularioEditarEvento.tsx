@@ -27,20 +27,37 @@ const inputClass =
 
 const gradBtn = 'linear-gradient(135deg, #f59e0b, #d97706)';
 
+// Helpers para extraer fecha y hora de un ISO timestamp
+function extractDate(isoDate: string): string {
+  try {
+    const d = new Date(isoDate);
+    return d.toISOString().split('T')[0]; // YYYY-MM-DD
+  } catch {
+    return '';
+  }
+}
+
+function extractTime(isoDate: string): string {
+  try {
+    const d = new Date(isoDate);
+    return d.toTimeString().slice(0, 5); // HH:MM
+  } catch {
+    return '';
+  }
+}
+
 const FormularioEditarEvento: FC<FormularioEditarEventoProps> = ({
   abierto,
   evento,
   onCerrar,
   onExito,
 }) => {
-  const [titulo, setTitulo] = useState('');
-  const [categoria, setCategoria] = useState<CategoriaEvento | ''>('');
+  const [title, setTitle] = useState('');
+  const [category, setCategory] = useState<CategoriaEvento | ''>('');
   const [fecha, setFecha] = useState('');
   const [hora, setHora] = useState('');
-  const [descripcion, setDescripcion] = useState('');
-  const [asistentes, setAsistentes] = useState('');
-  const [imagen, setImagen] = useState('');
-  const [direccion, setDireccion] = useState('');
+  const [description, setDescription] = useState('');
+  const [location, setLocation] = useState('');
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [exito, setExito] = useState(false);
   const { guardando, error: errorServidor, editarEvento, resetError } = useEditarEvento();
@@ -49,14 +66,12 @@ const FormularioEditarEvento: FC<FormularioEditarEventoProps> = ({
   // Pre-llenar campos al abrir con los datos del evento
   useEffect(() => {
     if (abierto && evento) {
-      setTitulo(evento.titulo);
-      setCategoria(evento.categoria as CategoriaEvento);
-      setFecha(evento.fecha);
-      setHora(evento.hora);
-      setDescripcion(evento.descripcion);
-      setAsistentes(String(evento.asistentes));
-      setImagen(evento.imagen ?? '');
-      setDireccion(evento.direccion ?? '');
+      setTitle(evento.title);
+      setCategory(evento.category as CategoriaEvento);
+      setFecha(extractDate(evento.start_date));
+      setHora(extractTime(evento.start_date));
+      setDescription(evento.description ?? '');
+      setLocation(evento.location ?? '');
       setErrores({});
       setExito(false);
       resetError();
@@ -74,14 +89,12 @@ const FormularioEditarEvento: FC<FormularioEditarEventoProps> = ({
 
   const validar = (): boolean => {
     const e: Record<string, string> = {};
-    if (!titulo.trim()) e.titulo = 'El título es requerido';
-    if (!categoria) e.categoria = 'Selecciona una categoría';
+    if (!title.trim()) e.title = 'El título es requerido';
+    if (!category) e.category = 'Selecciona una categoría';
     if (!fecha.trim()) e.fecha = 'La fecha es requerida';
     if (!hora.trim()) e.hora = 'La hora es requerida';
-    if (!descripcion.trim()) e.descripcion = 'La descripción es requerida';
-    else if (descripcion.trim().length > 1000) e.descripcion = 'La descripción no puede superar los 1000 caracteres';
-    if (!asistentes || isNaN(Number(asistentes)) || Number(asistentes) <= 0)
-      e.asistentes = 'Ingresa un número válido mayor a 0';
+    if (!description.trim()) e.description = 'La descripción es requerida';
+    else if (description.trim().length > 1000) e.description = 'La descripción no puede superar los 1000 caracteres';
     setErrores(e);
     return Object.keys(e).length === 0;
   };
@@ -92,14 +105,12 @@ const FormularioEditarEvento: FC<FormularioEditarEventoProps> = ({
 
     const ok = await editarEvento({
       id: evento.id,
-      titulo,
-      categoria: categoria as CategoriaEvento,
+      title,
+      category: category as CategoriaEvento,
       fecha,
       hora,
-      descripcion,
-      asistentes: Number(asistentes),
-      imagen: imagen || undefined,
-      direccion: direccion || undefined,
+      description,
+      location: location || undefined,
     });
 
     if (ok) {
@@ -155,7 +166,7 @@ const FormularioEditarEvento: FC<FormularioEditarEventoProps> = ({
               <h2 className="text-white font-bold text-lg">Editar Evento</h2>
             </div>
             <p className="text-lavender text-xs mt-0.5 truncate max-w-[220px]">
-              {evento.titulo}
+              {evento.title}
             </p>
           </div>
           <button
@@ -218,14 +229,14 @@ const FormularioEditarEvento: FC<FormularioEditarEventoProps> = ({
                 <input
                   ref={primerCampoRef}
                   type="text"
-                  value={titulo}
-                  onChange={(e) => { setTitulo(e.target.value); limpiarError('titulo'); }}
+                  value={title}
+                  onChange={(e) => { setTitle(e.target.value); limpiarError('title'); }}
                   placeholder="Ej: Conferencia de Inteligencia Artificial"
                   className={inputClass}
                   style={inputStyle}
                 />
-                {errores.titulo && (
-                  <p className="text-red-300 text-xs mt-1">{errores.titulo}</p>
+                {errores.title && (
+                  <p className="text-red-300 text-xs mt-1">{errores.title}</p>
                 )}
               </div>
 
@@ -239,10 +250,10 @@ const FormularioEditarEvento: FC<FormularioEditarEventoProps> = ({
                     <button
                       key={cat}
                       type="button"
-                      onClick={() => { setCategoria(cat); limpiarError('categoria'); }}
+                      onClick={() => { setCategory(cat); limpiarError('category'); }}
                       className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95"
                       style={
-                        categoria === cat
+                        category === cat
                           ? { background: gradBtn, color: '#fff' }
                           : {
                               backgroundColor: 'rgba(255,255,255,0.07)',
@@ -255,8 +266,8 @@ const FormularioEditarEvento: FC<FormularioEditarEventoProps> = ({
                     </button>
                   ))}
                 </div>
-                {errores.categoria && (
-                  <p className="text-red-300 text-xs mt-1">{errores.categoria}</p>
+                {errores.category && (
+                  <p className="text-red-300 text-xs mt-1">{errores.category}</p>
                 )}
               </div>
 
@@ -300,39 +311,20 @@ const FormularioEditarEvento: FC<FormularioEditarEventoProps> = ({
                   <label className="block text-sm font-normal text-white/80">
                     Descripción del evento <span style={{ color: '#f59e0b' }}>*</span>
                   </label>
-                  <span className={`text-xs ${descripcion.length > 1000 ? 'text-red-400' : 'text-white/40'}`}>
-                    {descripcion.length}/1000
+                  <span className={`text-xs ${description.length > 1000 ? 'text-red-400' : 'text-white/40'}`}>
+                    {description.length}/1000
                   </span>
                 </div>
                 <textarea
-                  value={descripcion}
-                  onChange={(e) => { setDescripcion(e.target.value); limpiarError('descripcion'); }}
+                  value={description}
+                  onChange={(e) => { setDescription(e.target.value); limpiarError('description'); }}
                   placeholder="Describe el evento..."
                   className={inputClass + " resize-none min-h-[100px]"}
                   style={inputStyle}
                   maxLength={1000}
                 />
-                {errores.descripcion && (
-                  <p className="text-red-300 text-xs mt-1">{errores.descripcion}</p>
-                )}
-              </div>
-
-              {/* Asistentes */}
-              <div>
-                <label className="block text-sm font-normal text-white/80 mb-1.5">
-                  Número de asistentes <span style={{ color: '#f59e0b' }}>*</span>
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={asistentes}
-                  onChange={(e) => { setAsistentes(e.target.value); limpiarError('asistentes'); }}
-                  placeholder="Ej: 150"
-                  className={inputClass}
-                  style={inputStyle}
-                />
-                {errores.asistentes && (
-                  <p className="text-red-300 text-xs mt-1">{errores.asistentes}</p>
+                {errores.description && (
+                  <p className="text-red-300 text-xs mt-1">{errores.description}</p>
                 )}
               </div>
 
@@ -343,31 +335,13 @@ const FormularioEditarEvento: FC<FormularioEditarEventoProps> = ({
                 </label>
                 <input
                   type="text"
-                  value={direccion}
-                  onChange={(e) => setDireccion(e.target.value)}
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
                   placeholder="Ej: Aula Magna UCV, Caracas"
                   className={inputClass}
                   style={inputStyle}
                   maxLength={150}
                 />
-              </div>
-
-              {/* URL Imagen */}
-              <div>
-                <label className="block text-sm font-normal text-white/80 mb-1.5">
-                  URL de imagen <span className="text-white/35">(opcional)</span>
-                </label>
-                <input
-                  type="url"
-                  value={imagen}
-                  onChange={(e) => setImagen(e.target.value)}
-                  placeholder="https://..."
-                  className={inputClass}
-                  style={inputStyle}
-                />
-                <p className="text-white/35 text-xs mt-1">
-                  Si se deja vacío se usará la imagen por defecto de la categoría
-                </p>
               </div>
 
               {/* Botones */}

@@ -1,4 +1,5 @@
 // Componente Header de Cloud UCV con autenticación
+import Image from 'next/image';
 import { useState, useRef, useEffect, type FC } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import ModalAuth from '@/components/ucv/ModalAuth';
@@ -40,11 +41,13 @@ const Header: FC = () => {
       <div className="flex items-center justify-between px-4 py-3">
         {/* Logo y nombre */}
         <div className="flex items-center gap-3">
-          <div className="w-20 h-20 -my-2 flex items-center justify-center bg-transparent overflow-hidden shrink-0">
-            <img 
-              src="https://miaoda-conversation-file.s3cdn.medo.dev/user-c0fzjyndhc00/app-c0fzngxk3k01/20260609/imgucv.png" 
-              alt="Logo UCV" 
-              className="w-full h-full object-contain"
+          <div className="w-20 h-20 -my-2 flex items-center justify-center bg-transparent overflow-hidden shrink-0 relative">
+            <Image
+              src="/images/logo/logo-dark.svg"
+              alt="Logo UCV"
+              fill
+              className="object-contain"
+              unoptimized
             />
           </div>
           <div>
@@ -86,43 +89,32 @@ const Header: FC = () => {
                       </div>
                     ) : (
                       notificaciones.map(notif => {
-                        const esLike = notif.tipo === 'like';
-                        const esNuevoEvento = notif.tipo === 'nuevo_evento_categoria';
-                        
                         return (
                           <div key={notif.id} className="px-4 py-3 border-b border-white/5 hover:bg-white/5 transition-colors">
                             <div className="flex gap-3 items-start">
                               <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 shadow-sm" 
                                    style={{ 
-                                     background: esLike 
-                                      ? 'linear-gradient(135deg, #f59e0b, #d97706)' 
-                                      : 'linear-gradient(135deg, #3b82f6, #06b6d4)' 
+                                     background: 'linear-gradient(135deg, #3b82f6, #06b6d4)' 
                                    }}>
-                                {esLike ? (
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
-                                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                  </svg>
-                                ) : (
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="white" strokeWidth="2"/>
-                                    <line x1="16" y1="2" x2="16" y2="6" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-                                    <line x1="8" y1="2" x2="8" y2="6" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-                                    <line x1="3" y1="10" x2="21" y2="10" stroke="white" strokeWidth="2"/>
-                                  </svg>
-                                )}
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                  <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm text-white/90 text-pretty leading-tight">
-                                  {esLike && (
-                                    <><span className="font-semibold text-white">{notif.actor?.username || 'Alguien'}</span> le ha dado me gusta a tu evento <span className="font-medium text-white">"{notif.evento?.titulo || 'Evento'}"</span></>
-                                  )}
-                                  {esNuevoEvento && (
-                                    <>Hay un nuevo evento en tus categorías favoritas: <span className="font-semibold text-white">"{notif.evento?.titulo || 'Evento'}"</span> subido por <span className="font-medium text-white">{notif.actor?.username || 'Alguien'}</span></>
-                                  )}
-                                  {!esLike && !esNuevoEvento && (
-                                    <>{notif.tipo} en <span className="font-semibold text-white">"{notif.evento?.titulo || 'Evento'}"</span></>
-                                  )}
+                                <p className="text-sm text-white font-semibold leading-tight">
+                                  {notif.title || 'Notificación'}
                                 </p>
+                                {notif.body && (
+                                  <p className="text-sm text-white/70 mt-0.5 text-pretty leading-tight">
+                                    {notif.body}
+                                  </p>
+                                )}
+                                {notif.evento?.title && (
+                                  <p className="text-xs text-lavender mt-0.5">
+                                    Evento: &quot;{notif.evento.title}&quot;
+                                  </p>
+                                )}
                                 <p className="text-[10px] text-lavender mt-1">
                                   {new Date(notif.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                                 </p>
@@ -142,12 +134,15 @@ const Header: FC = () => {
           {user ? (
             // Avatar con iniciales o imagen del usuario autenticado
             profile?.avatar_url ? (
-              <img 
-                src={profile.avatar_url} 
-                alt={profile.username}
-                className="w-9 h-9 rounded-full object-cover border border-white/10"
-                title={profile.username}
-              />
+              <div className="relative w-9 h-9 rounded-full overflow-hidden border border-white/10">
+                <Image
+                  src={profile.avatar_url}
+                  alt={profile.username}
+                  fill
+                  className="object-cover"
+                  unoptimized
+                />
+              </div>
             ) : (
               <div
                 className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white border border-white/10"

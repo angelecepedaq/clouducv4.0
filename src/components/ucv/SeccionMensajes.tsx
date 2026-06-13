@@ -1,4 +1,5 @@
 // Sección de comentarios públicos para eventos
+import Image from 'next/image';
 import { useState, useRef, useEffect } from 'react';
 import type { FC } from 'react';
 import type { MensajeEvento } from '@/types/types';
@@ -7,7 +8,6 @@ import { useAuth } from '@/contexts/AuthContext';
 
 interface SeccionMensajesProps {
   eventoId: string;
-  creadorId: string | null | undefined;
   onAbrirLogin: () => void;
 }
 
@@ -31,7 +31,15 @@ const AvatarMensaje: FC<{ username: string; avatarUrl?: string | null }> = ({ us
     style={!avatarUrl ? { background: 'linear-gradient(135deg, #d946ef, #a855f7)' } : { backgroundColor: 'rgba(255,255,255,0.1)' }}
   >
     {avatarUrl ? (
-      <img src={avatarUrl} alt={username} className="w-full h-full object-cover" />
+      <div className="relative w-full h-full">
+        <Image
+          src={avatarUrl}
+          alt={username}
+          fill
+          className="object-cover"
+          unoptimized
+        />
+      </div>
     ) : (
       username.slice(0, 2).toUpperCase()
     )}
@@ -88,17 +96,17 @@ const ComentarioItem: FC<{
           <div className="text-sm text-white/90 leading-snug text-pretty mt-0.5 whitespace-pre-wrap break-words">
             {/* Si ya inyectamos el @username al enviar, evitamos duplicarlo aquí si queremos.
                 Pero como puede tener un reply_to_id directo, usamos regex o simplemente renderizamos. */}
-            {mensaje.contenido.startsWith('@') ? (
+            {mensaje.mensaje.startsWith('@') ? (
               <>
-                <span className="text-[#a855f7] font-medium">{mensaje.contenido.split(' ')[0]}</span>
-                {' ' + mensaje.contenido.split(' ').slice(1).join(' ')}
+                <span className="text-[#a855f7] font-medium">{mensaje.mensaje.split(' ')[0]}</span>
+                {' ' + mensaje.mensaje.split(' ').slice(1).join(' ')}
               </>
             ) : (
               <>
                 {isReply && mensaje.reply_to?.profiles?.username && (
                   <span className="text-[#a855f7] mr-1.5 font-medium">@{mensaje.reply_to.profiles.username}</span>
                 )}
-                {mensaje.contenido}
+                {mensaje.mensaje}
               </>
             )}
           </div>
@@ -148,7 +156,7 @@ const ComentarioItem: FC<{
   );
 };
 
-const SeccionMensajes: FC<SeccionMensajesProps> = ({ eventoId, creadorId, onAbrirLogin }) => {
+const SeccionMensajes: FC<SeccionMensajesProps> = ({ eventoId, onAbrirLogin }) => {
   const { user } = useAuth();
   const { mensajes, cargando, enviando, error, enviarMensaje, toggleLikeMensaje, getMensajeLikes, resetError } = useMensajesEvento(eventoId);
   const [texto, setTexto] = useState('');

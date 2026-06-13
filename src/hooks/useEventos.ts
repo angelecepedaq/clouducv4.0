@@ -25,10 +25,10 @@ export function useEventos(): UseEventosResult {
       setCargando(true);
       setError(null);
 
-      // 1. Fetch de los eventos con likes y descripcion
+      // 1. Fetch de los eventos
       const { data, error: supabaseError } = await supabase
         .from('eventos')
-        .select('id, titulo, categoria, descripcion, fecha, hora, asistentes, imagen, avatares, direccion, likes, created_at, user_id')
+        .select('id, title, description, category, location, start_date, end_date, user_id, created_at, updated_at')
         .order('created_at', { ascending: true });
 
       if (cancelado) return;
@@ -43,8 +43,24 @@ export function useEventos(): UseEventosResult {
       
       let likesSet = new Set<string>();
       let guardadosSet = new Set<string>();
+      const likesCountMap = new Map<string, number>();
 
-      // 2. Si hay usuario, hacer fetch de sus likes y eventos guardados
+      // 2. Contar likes por evento
+      if (rows.length > 0) {
+        const eventIds = rows.map(r => r.id);
+        const { data: likesData } = await supabase
+          .from('likes_evento')
+          .select('evento_id')
+          .in('evento_id', eventIds);
+        
+        if (likesData) {
+          for (const like of likesData) {
+            likesCountMap.set(like.evento_id, (likesCountMap.get(like.evento_id) || 0) + 1);
+          }
+        }
+      }
+
+      // 3. Si hay usuario, hacer fetch de sus likes y eventos guardados
       if (user) {
         const [likesRes, guardadosRes] = await Promise.all([
           supabase.from('likes_evento').select('evento_id').eq('user_id', user.id),
@@ -61,11 +77,10 @@ export function useEventos(): UseEventosResult {
       
       if (cancelado) return;
 
-      // 3. Mapear al tipo Evento con el estado del usuario actual
+      // 4. Mapear al tipo Evento con el estado del usuario actual
       const eventosConEstado: Evento[] = rows.map((row) => ({
         ...row,
-        // Si el valor no viene de la BD, asegura 0
-        likes: row.likes || 0,
+        likes_count: likesCountMap.get(row.id) || 0,
         guardado: guardadosSet.has(row.id),
         like_local: likesSet.has(row.id)
       }));

@@ -31,14 +31,13 @@ export function useMensajesEvento(eventoId: string | null): UseMensajesEventoRes
         id, 
         evento_id, 
         remitente_id, 
-        contenido, 
+        mensaje, 
         created_at, 
         reply_to_id,
-        profiles!mensajes_evento_remitente_id_fkey(username, avatar_url),
         likes:likes_mensaje(count)
       `)
       .eq('evento_id', eventoId)
-      .order('created_at', { ascending: true }) // Dejamos que ascienda en BD y agrupamos en React
+      .order('created_at', { ascending: true })
       .limit(100);
 
     setCargando(false);
@@ -48,16 +47,41 @@ export function useMensajesEvento(eventoId: string | null): UseMensajesEventoRes
       return;
     }
     
-    // Necesitamos cargar el nombre del usuario al que se le responde si hay reply_to_id
     let mensajesProcesados = Array.isArray(data) ? (data as unknown as MensajeEvento[]) : [];
     
-    // Un simple mapeo para obtener el nombre del usuario padre
-    const mensajesMap = new Map(mensajesProcesados.map(m => [m.id, m]));
-    mensajesProcesados = mensajesProcesados.map(m => {
+    const remitenteIds = Array.from(new Set(mensajesProcesados.map(m => m.remitente_id).filter(Boolean)));
+    const perfilesMap = new Map<string, { username?: string; avatar_url?: string | null }>();
+
+    if (remitenteIds.length > 0) {
+      const { data: perfiles } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url')
+        .in('id', remitenteIds as string[]);
+
+      if (Array.isArray(perfiles)) {
+        perfiles.forEach((perfil) => {
+          if (perfil?.id) {
+            perfilesMap.set(perfil.id, {
+              username: perfil.username,
+              avatar_url: perfil.avatar_url,
+            });
+          }
+        });
+      }
+    }
+
+    mensajesProcesados = mensajesProcesados.map((m) => ({
+      ...m,
+      profiles: perfilesMap.get(m.remitente_id) ?? null,
+    } as MensajeEvento));
+
+    // Necesitamos cargar el nombre del usuario al que se le responde si hay reply_to_id
+    const mensajesMap = new Map(mensajesProcesados.map((m) => [m.id, m]));
+    mensajesProcesados = mensajesProcesados.map((m) => {
       if (m.reply_to_id && mensajesMap.has(m.reply_to_id)) {
         const parentMsg = mensajesMap.get(m.reply_to_id);
         if (parentMsg && parentMsg.profiles) {
-           m.reply_to = { profiles: parentMsg.profiles };
+          m.reply_to = { profiles: parentMsg.profiles };
         }
       }
       return m;
@@ -144,16 +168,16 @@ export function useMensajesEvento(eventoId: string | null): UseMensajesEventoRes
     }
 
     const { error: err } = await supabase.from('mensajes_evento').insert({
+      id: crypto.randomUUID(),
       evento_id: eventoId,
       remitente_id: user.id,
-      contenido: texto,
+      mensaje: texto,
       reply_to_id: replyToId || null
     });
 
     setEnviando(false);
     if (err) {
       console.error('Error enviando comentario:', err);
-      // Extraemos el error del RLS si lo hubiese, u otro motivo
       setError(`Error al enviar el comentario: ${err.message}`);
       return false;
     }
@@ -183,6 +207,7 @@ export function useMensajesEvento(eventoId: string | null): UseMensajesEventoRes
       const { error } = await supabase
         .from('likes_mensaje')
         .insert({ mensaje_id: mensajeId, user_id: session.user.id });
+      if (error) console.error('Error insertando like_mensaje:', error);
       return !error;
     }
   };

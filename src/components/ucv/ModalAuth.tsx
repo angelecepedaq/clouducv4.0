@@ -1,7 +1,9 @@
 // Modal de autenticación — Login y Registro (bottom sheet)
+import Image from 'next/image';
 import { useState, useEffect, useRef } from 'react';
 import type { FC, FormEvent } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 interface ModalAuthProps {
   abierto: boolean;
@@ -99,9 +101,17 @@ const ModalAuth: FC<ModalAuthProps> = ({ abierto, onCerrar, tabInicial = 'login'
 
     setRegCargando(true);
     setRegError(null);
-    const { error } = await signUpWithUsername(regUser.trim(), regEmail.trim(), regPass);
+    const { error, needsEmailConfirmation } = await signUpWithUsername(regUser.trim(), regEmail.trim(), regPass);
     setRegCargando(false);
+    
     if (error) { setRegError(error); return; }
+    
+    if (needsEmailConfirmation) {
+      toast.success('Cuenta creada. Por favor verifica tu correo electrónico para iniciar sesión.', { duration: 6000 });
+    } else {
+      toast.success('Cuenta creada exitosamente');
+    }
+    
     onCerrar();
   };
 
@@ -152,11 +162,13 @@ const ModalAuth: FC<ModalAuthProps> = ({ abierto, onCerrar, tabInicial = 'login'
         {/* Cabecera */}
         <div className="flex items-center justify-between px-5 pt-4 pb-3 shrink-0">
           <div className="flex items-center gap-2">
-            <div className="w-20 h-20 -my-3 flex items-center justify-center bg-transparent overflow-hidden shrink-0">
-              <img 
-                src="https://miaoda-conversation-file.s3cdn.medo.dev/user-c0fzjyndhc00/app-c0fzngxk3k01/20260609/imgucv.png" 
-                alt="Logo UCV" 
-                className="w-full h-full object-contain"
+            <div className="w-20 h-20 -my-3 flex items-center justify-center bg-transparent overflow-hidden shrink-0 relative">
+              <Image
+                src="/images/logo/logo-dark.svg"
+                alt="Logo UCV"
+                fill
+                className="object-contain"
+                unoptimized
               />
             </div>
             <div>
@@ -221,13 +233,13 @@ const ModalAuth: FC<ModalAuthProps> = ({ abierto, onCerrar, tabInicial = 'login'
               )}
 
               <div>
-                <label className="block text-sm font-normal text-white/80 mb-1.5">Usuario</label>
+                <label className="block text-sm font-normal text-white/80 mb-1.5">Correo electrónico</label>
                 <input
                   ref={primerInputRef}
-                  type="text"
+                  type="email"
                   value={loginUser}
                   onChange={(e) => { setLoginUser(e.target.value); setLoginError(null); }}
-                  placeholder="Ingresa tu usuario"
+                  placeholder="Ingresa tu correo electrónico"
                   className={inputClass}
                   style={inputStyle}
                   autoCapitalize="none"

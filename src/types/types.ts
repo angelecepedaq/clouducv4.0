@@ -6,34 +6,34 @@ export type Categoria = 'Todos' | 'Académicos' | 'Culturales' | 'Deportivos' | 
 export interface Profile {
   id: string;
   username: string;
-  email: string | null;
-  role: 'user' | 'admin';
-  categorias_favoritas?: string[];
-  avatar_url?: string | null;
+  full_name: string | null;
+  avatar_url: string | null;
+  website: string | null;
+  rol: string | null;
+  role: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 // Tipo que mapea exactamente la estructura de la tabla Supabase
 export interface EventoRow {
   id: string;
-  titulo: string;
-  categoria: 'Académicos' | 'Culturales' | 'Deportivos' | 'Comerciales';
-  fecha: string;
-  hora: string;
-  descripcion: string;
-  asistentes: number;
-  imagen: string;
-  avatares: string[];
-  direccion?: string | null;
-  likes: number;
+  title: string;
+  description: string | null;
+  category: string;
+  location: string | null;
+  start_date: string;
+  end_date: string | null;
+  user_id: string | null;
   created_at: string;
-  user_id?: string | null;
+  updated_at: string;
 }
 
-// Tipo usado en la UI (extiende EventoRow con estado local de bookmark y like local)
+// Tipo usado en la UI (extiende EventoRow con estado local de bookmark y like)
 export interface Evento extends EventoRow {
   guardado: boolean;
-  like_local?: boolean; // Para optimismo
+  like_local?: boolean;
+  likes_count?: number;
 }
 
 // Tipo para mensajes privados al administrador del evento
@@ -41,7 +41,7 @@ export interface MensajeEvento {
   id: string;
   evento_id: string;
   remitente_id: string;
-  contenido: string;
+  mensaje: string;
   created_at: string;
   reply_to_id?: string | null;
   // JOIN con profiles para mostrar username y avatar del remitente
@@ -59,11 +59,12 @@ export interface NotificacionRow {
   user_id: string;
   actor_id: string | null;
   evento_id: string;
-  tipo: string;
-  leida: boolean;
+  title: string;
+  body: string | null;
+  read: boolean;
   created_at: string;
   
   // Relaciones
   actor?: { username: string } | null;
-  evento?: { titulo: string } | null;
+  evento?: { title: string } | null;
 }

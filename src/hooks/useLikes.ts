@@ -15,15 +15,30 @@ export function useLikes() {
     setCargando(prev => ({ ...prev, [eventoId]: true }));
     
     try {
-      // Usar la función RPC para evitar condiciones de carrera
-      const { data, error } = await supabase.rpc('toggle_like', { p_evento_id: eventoId });
-      
-      if (error) {
-        console.error('Error al hacer toggle de like:', error);
-        return false;
+      // Verificar si ya existe el like
+      const { data: existingLike } = await supabase
+        .from('likes_evento')
+        .select('id')
+        .eq('evento_id', eventoId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (existingLike) {
+        // Quitar like
+        const { error } = await supabase
+          .from('likes_evento')
+          .delete()
+          .eq('evento_id', eventoId)
+          .eq('user_id', user.id);
+        return !error;
+      } else {
+        // Agregar like
+        const { error } = await supabase
+          .from('likes_evento')
+          .insert({ id: crypto.randomUUID(), evento_id: eventoId, user_id: user.id });
+        if (error) console.error('Error insertando like_evento:', error);
+        return !error;
       }
-      
-      return true; // Se procesó correctamente (el estado optimista ya se aplicó en el componente)
     } catch (e) {
       console.error('Excepción al hacer toggle de like:', e);
       return false;

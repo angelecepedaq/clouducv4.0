@@ -26,14 +26,12 @@ const inputFocusClass =
 
 // Estado inicial vacío del formulario
 const estadoInicial = {
-  titulo: '',
-  categoria: '' as CategoriaEvento | '',
+  title: '',
+  category: '' as CategoriaEvento | '',
   fecha: '',
   hora: '',
-  descripcion: '',
-  asistentes: '',
-  imagen: '',
-  direccion: '',
+  description: '',
+  location: '',
 };
 
 const FormularioEvento: FC<FormularioEventoProps> = ({ abierto, onCerrar, onExito }) => {
@@ -66,14 +64,12 @@ const FormularioEvento: FC<FormularioEventoProps> = ({ abierto, onCerrar, onExit
 
   const validar = (): boolean => {
     const nuevosErrores: Partial<typeof estadoInicial> = {};
-    if (!form.titulo.trim()) nuevosErrores.titulo = 'El título es requerido';
-    if (!form.categoria) nuevosErrores.categoria = 'Selecciona una categoría' as string & CategoriaEvento;
+    if (!form.title.trim()) nuevosErrores.title = 'El título es requerido';
+    if (!form.category) nuevosErrores.category = 'Selecciona una categoría' as string & CategoriaEvento;
     if (!form.fecha) nuevosErrores.fecha = 'La fecha es requerida';
     if (!form.hora) nuevosErrores.hora = 'La hora es requerida';
-    if (!form.descripcion.trim()) nuevosErrores.descripcion = 'La descripción es requerida';
-    else if (form.descripcion.trim().length > 1000) nuevosErrores.descripcion = 'La descripción no puede superar los 1000 caracteres';
-    if (!form.asistentes || isNaN(Number(form.asistentes)) || Number(form.asistentes) <= 0)
-      nuevosErrores.asistentes = 'Ingresa un número válido mayor a 0';
+    if (!form.description.trim()) nuevosErrores.description = 'La descripción es requerida';
+    else if (form.description.trim().length > 1000) nuevosErrores.description = 'La descripción no puede superar los 1000 caracteres';
     setErrores(nuevosErrores);
     return Object.keys(nuevosErrores).length === 0;
   };
@@ -83,14 +79,12 @@ const FormularioEvento: FC<FormularioEventoProps> = ({ abierto, onCerrar, onExit
     if (!validar()) return;
 
     const ok = await crearEvento({
-      titulo: form.titulo,
-      categoria: form.categoria as CategoriaEvento,
+      title: form.title,
+      category: form.category as CategoriaEvento,
       fecha: form.fecha,
       hora: form.hora,
-      descripcion: form.descripcion,
-      asistentes: Number(form.asistentes),
-      imagen: form.imagen || undefined,
-      direccion: form.direccion || undefined,
+      description: form.description,
+      location: form.location || undefined,
     });
 
     if (ok) {
@@ -201,15 +195,15 @@ const FormularioEvento: FC<FormularioEventoProps> = ({ abierto, onCerrar, onExit
                 <input
                   ref={primerCampoRef}
                   type="text"
-                  value={form.titulo}
-                  onChange={(e) => handleChange('titulo', e.target.value)}
+                  value={form.title}
+                  onChange={(e) => handleChange('title', e.target.value)}
                   placeholder="Ej: Conferencia de Inteligencia Artificial"
                   className={inputFocusClass}
                   style={inputStyle}
                   maxLength={100}
                 />
-                {errores.titulo && (
-                  <p className="text-red-400 text-xs mt-1">{errores.titulo}</p>
+                {errores.title && (
+                  <p className="text-red-400 text-xs mt-1">{errores.title}</p>
                 )}
               </div>
 
@@ -220,7 +214,7 @@ const FormularioEvento: FC<FormularioEventoProps> = ({ abierto, onCerrar, onExit
                 </label>
                 <div className="flex gap-2">
                   {CATEGORIAS.map((cat) => {
-                    const activo = form.categoria === cat;
+                    const activo = form.category === cat;
                     const colores: Record<CategoriaEvento, string> = {
                       Académicos: '#3B82F6',
                       Culturales: '#d946ef',
@@ -231,7 +225,7 @@ const FormularioEvento: FC<FormularioEventoProps> = ({ abierto, onCerrar, onExit
                       <button
                         key={cat}
                         type="button"
-                        onClick={() => handleChange('categoria', cat)}
+                        onClick={() => handleChange('category', cat)}
                         className="flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all active:scale-95"
                         style={
                           activo
@@ -252,8 +246,8 @@ const FormularioEvento: FC<FormularioEventoProps> = ({ abierto, onCerrar, onExit
                     );
                   })}
                 </div>
-                {errores.categoria && (
-                  <p className="text-red-400 text-xs mt-1">{errores.categoria}</p>
+                {errores.category && (
+                  <p className="text-red-400 text-xs mt-1">{errores.category}</p>
                 )}
               </div>
 
@@ -297,39 +291,20 @@ const FormularioEvento: FC<FormularioEventoProps> = ({ abierto, onCerrar, onExit
                   <label className="block text-sm font-normal text-white/80">
                     Descripción del evento <span style={{ color: '#d946ef' }}>*</span>
                   </label>
-                  <span className={`text-xs ${form.descripcion.length > 1000 ? 'text-red-400' : 'text-white/40'}`}>
-                    {form.descripcion.length}/1000
+                  <span className={`text-xs ${form.description.length > 1000 ? 'text-red-400' : 'text-white/40'}`}>
+                    {form.description.length}/1000
                   </span>
                 </div>
                 <textarea
-                  value={form.descripcion}
-                  onChange={(e) => handleChange('descripcion', e.target.value)}
+                  value={form.description}
+                  onChange={(e) => handleChange('description', e.target.value)}
                   placeholder="Describe el evento..."
                   className={inputFocusClass + " resize-none min-h-[100px]"}
                   style={inputStyle}
                   maxLength={1000}
                 />
-                {errores.descripcion && (
-                  <p className="text-red-400 text-xs mt-1">{errores.descripcion}</p>
-                )}
-              </div>
-
-              {/* Asistentes */}
-              <div>
-                <label className="block text-sm font-normal text-white/80 mb-1.5">
-                  Asistentes esperados <span style={{ color: '#d946ef' }}>*</span>
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={form.asistentes}
-                  onChange={(e) => handleChange('asistentes', e.target.value)}
-                  placeholder="Ej: 150"
-                  className={inputFocusClass}
-                  style={inputStyle}
-                />
-                {errores.asistentes && (
-                  <p className="text-red-400 text-xs mt-1">{errores.asistentes}</p>
+                {errores.description && (
+                  <p className="text-red-400 text-xs mt-1">{errores.description}</p>
                 )}
               </div>
 
@@ -341,32 +316,13 @@ const FormularioEvento: FC<FormularioEventoProps> = ({ abierto, onCerrar, onExit
                 </label>
                 <input
                   type="text"
-                  value={form.direccion}
-                  onChange={(e) => handleChange('direccion', e.target.value)}
+                  value={form.location}
+                  onChange={(e) => handleChange('location', e.target.value)}
                   placeholder="Ej: Aula Magna UCV, Caracas"
                   className={inputFocusClass}
                   style={inputStyle}
                   maxLength={150}
                 />
-              </div>
-
-              {/* URL de imagen */}
-              <div>
-                <label className="block text-sm font-normal text-white/80 mb-1.5">
-                  URL de imagen{' '}
-                  <span className="text-white/40 font-normal">(opcional)</span>
-                </label>
-                <input
-                  type="url"
-                  value={form.imagen}
-                  onChange={(e) => handleChange('imagen', e.target.value)}
-                  placeholder="https://..."
-                  className={inputFocusClass}
-                  style={inputStyle}
-                />
-                <p className="text-white/35 text-xs mt-1">
-                  Si no se provee, se usará una imagen según la categoría
-                </p>
               </div>
 
               {/* Botones de acción */}

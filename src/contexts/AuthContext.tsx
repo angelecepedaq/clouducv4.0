@@ -1,3 +1,5 @@
+"use client"
+
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { supabase } from '@/db/supabase';
 import type { User } from '@supabase/supabase-js';
@@ -6,7 +8,7 @@ import type { Profile } from '@/types/types';
 export async function getProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, username, email, role, categorias_favoritas, avatar_url, created_at')
+    .select('id, username, full_name, avatar_url, website, rol, role, created_at, updated_at')
     .eq('id', userId)
     .maybeSingle();
 
@@ -64,26 +66,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signInWithUsername = async (loginId: string, password: string): Promise<{ error: string | null }> => {
-    const isEmail = loginId.includes('@');
-    let emailToUse = loginId;
-
-    if (!isEmail) {
-      // Intentar encontrar el email correspondiente al username o probar el formato anterior
-      const { data } = await supabase
-        .from('profiles')
-        .select('email')
-        .eq('username', loginId)
-        .maybeSingle();
-
-      if (data?.email && !data.email.endsWith('@miaoda.com')) {
-        emailToUse = data.email;
-      } else {
-        // Fallback for previous simulated users
-        emailToUse = `${loginId}@miaoda.com`;
-      }
+    // Require an email for sign-in to avoid legacy external redirects.
+    if (!loginId.includes('@')) {
+      return { error: 'Por favor ingresa tu correo electrónico' };
     }
 
-    const { error } = await supabase.auth.signInWithPassword({ email: emailToUse, password });
+    const { error } = await supabase.auth.signInWithPassword({ email: loginId, password });
     if (!error) return { error: null };
 
     const msg = error.message.toLowerCase();
@@ -92,21 +80,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: 'Error de conexión. Intenta nuevamente.' };
   };
 
-  const signUpWithUsername = async (username: string, email: string, password: string): Promise<{ error: string | null }> => {
+  const signUpWithUsername = async (username: string, email: string, password: string): Promise<{ error: string | null, needsEmailConfirmation?: boolean }> => {
     // Verificar si el username ya existe
-    const { data } = await supabase.from('profiles').select('id').eq('username', username).maybeSingle();
-    if (data) {
+    const { data: profileExists } = await supabase.from('profiles').select('id').eq('username', username).maybeSingle();
+    if (profileExists) {
       return { error: 'El nombre de usuario ya está en uso' };
     }
 
     // Pasamos username en metadata para que handle_new_user lo pueda usar
-    const { error } = await supabase.auth.signUp({
+    const { data: authData, error } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { username } },
     });
 
-    if (!error) return { error: null };
+    if (!error) {
+      // Si la sesión es null, Supabase requiere confirmación de email
+      const needsEmailConfirmation = authData.user && authData.session === null;
+      return { error: null, needsEmailConfirmation: !!needsEmailConfirmation };
+    }
 
     const msg = error.message.toLowerCase();
     if (msg.includes('already') || msg.includes('registered')) return { error: 'El correo electrónico ya está registrado' };

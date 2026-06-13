@@ -17,19 +17,48 @@ const badgeStyles: Record<string, string> = {
   Culturales: 'badge-culturales',
   Académicos: 'badge-academicos',
   Deportivos: 'badge-deportivos',
-  Comerciales: 'badge-comerciales', // Require css update
+  Comerciales: 'badge-comerciales',
 };
+
+// Colores de categoría para el indicador visual
+const categoryColors: Record<string, string> = {
+  Académicos: '#3B82F6',
+  Culturales: '#D946EF',
+  Deportivos: '#10B981',
+  Comerciales: '#F59E0B',
+};
+
+// Formatear fecha desde ISO timestamp
+function formatFecha(isoDate: string): string {
+  try {
+    const date = new Date(isoDate);
+    return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+  } catch {
+    return isoDate;
+  }
+}
+
+function formatHora(isoDate: string): string {
+  try {
+    const date = new Date(isoDate);
+    return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return '';
+  }
+}
 
 const EventoCard: FC<EventoCardProps> = ({ evento, onClick }) => {
   const { user } = useAuth();
   const [guardado, setGuardado] = useState(evento.guardado);
   const [likeOptimista, setLikeOptimista] = useState(evento.like_local ?? false);
-  const [likesContador, setLikesContador] = useState(evento.likes ?? 0);
+  const [likesContador, setLikesContador] = useState(evento.likes_count ?? 0);
   
   const { toggleLike, likesCargando } = useLikes();
   const { toggleGuardado, guardadoCargando } = useGuardar();
   
   const [authAbierto, setAuthAbierto] = useState(false);
+
+  const catColor = categoryColors[evento.category] ?? '#a855f7';
 
   const handleLike = async (e: MouseEvent) => {
     e.stopPropagation();
@@ -78,25 +107,23 @@ const EventoCard: FC<EventoCardProps> = ({ evento, onClick }) => {
     
     const urlCompartir = `${window.location.origin}?evento=${evento.id}`;
     
-    // Si la Web Share API está disponible (ej. en móviles)
     if (navigator.share) {
       try {
         await navigator.share({
-          title: evento.titulo,
-          text: `¡Mira este evento en Cloud UCV! - ${evento.titulo}`,
+          title: evento.title,
+          text: `¡Mira este evento en Cloud UCV! - ${evento.title}`,
           url: urlCompartir,
         });
       } catch (err) {
         console.error('Error compartiendo', err);
       }
     } else {
-      // Fallback: Copiar al portapapeles
       try {
         await navigator.clipboard.writeText(
-          `¡Mira este evento en Cloud UCV!\n${evento.titulo}\n${urlCompartir}`
+          `¡Mira este evento en Cloud UCV!\n${evento.title}\n${urlCompartir}`
         );
         toast.success('¡Enlace copiado al portapapeles!');
-      } catch (err) {
+      } catch {
         toast.error('No se pudo copiar el enlace');
       }
     }
@@ -107,27 +134,28 @@ const EventoCard: FC<EventoCardProps> = ({ evento, onClick }) => {
       className="rounded-2xl overflow-hidden ucv-card-bg shadow-card mb-4 active:scale-[0.98] transition-transform cursor-pointer"
       onClick={onClick}
     >
-      {/* Imagen del evento */}
-      <div className="relative w-full h-44 overflow-hidden">
-        <img
-          src={evento.imagen}
-          alt={evento.titulo}
-          className="w-full h-full object-cover"
-          loading="lazy"
-        />
+      {/* Header visual con color de categoría */}
+      <div className="relative w-full h-32 overflow-hidden" style={{ background: `linear-gradient(135deg, ${catColor}33, ${catColor}11)` }}>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ backgroundColor: `${catColor}22` }}>
+            <span className="text-3xl">
+              {evento.category === 'Académicos' ? '🎓' : evento.category === 'Culturales' ? '🎵' : evento.category === 'Deportivos' ? '⚽' : '💼'}
+            </span>
+          </div>
+        </div>
         {/* Badge de categoría */}
         <div className="absolute top-3 left-3">
           <span
-            className={`text-xs font-semibold text-white px-3 py-1 rounded-full ${badgeStyles[evento.categoria] ?? 'bg-primary'}`}
+            className={`text-xs font-semibold text-white px-3 py-1 rounded-full ${badgeStyles[evento.category] ?? 'bg-primary'}`}
           >
-            {evento.categoria}
+            {evento.category}
           </span>
         </div>
       </div>
 
       {/* Contenido */}
       <div className="px-4 py-3">
-        <h3 className="text-white font-bold text-base mb-2 text-balance">{evento.titulo}</h3>
+        <h3 className="text-white font-bold text-base mb-2 text-balance">{evento.title}</h3>
 
         {/* Fecha y hora */}
         <div className="flex items-center gap-2 mb-2">
@@ -136,38 +164,24 @@ const EventoCard: FC<EventoCardProps> = ({ evento, onClick }) => {
             <path d="M16 2V6M8 2V6M3 10H21" stroke="rgba(255,255,255,0.6)" strokeWidth="1.8" strokeLinecap="round"/>
           </svg>
           <span className="text-xs text-lavender">
-            {evento.fecha} - {evento.hora}
+            {formatFecha(evento.start_date)} - {formatHora(evento.start_date)}
           </span>
         </div>
 
-        {/* Dirección (si existe) */}
-        {evento.direccion && (
+        {/* Ubicación (si existe) */}
+        {evento.location && (
           <div className="flex items-center gap-2 mb-3">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" className="shrink-0">
               <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" stroke="rgba(217,70,239,0.7)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
               <circle cx="12" cy="10" r="3" stroke="rgba(217,70,239,0.7)" strokeWidth="1.8"/>
             </svg>
-            <span className="text-xs text-lavender truncate">{evento.direccion}</span>
+            <span className="text-xs text-lavender truncate">{evento.location}</span>
           </div>
         )}
 
         {/* Acciones e info final */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              {/* Avatares superpuestos */}
-              <div className="flex -space-x-2">
-                {evento.avatares.slice(0, 3).map((color, idx) => (
-                  <div
-                    key={idx}
-                    className="w-6 h-6 rounded-full border-2 shrink-0"
-                    style={{ backgroundColor: color, borderColor: 'hsl(258 50% 28%)' }}
-                  />
-                ))}
-              </div>
-              <span className="text-sm font-semibold text-white">{evento.asistentes}</span>
-            </div>
-
             {/* Contador de Likes */}
             <div className="flex items-center gap-1.5" onClick={handleLike}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill={likeOptimista ? '#ef4444' : 'none'} className="transition-transform active:scale-75" style={{ color: likeOptimista ? '#ef4444' : 'rgba(255,255,255,0.6)' }}>
