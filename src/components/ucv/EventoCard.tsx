@@ -140,15 +140,17 @@ const EventoCard: FC<EventoCardProps> = ({ evento, onClick }) => {
         {evento.imagen ? (
           <Image src={evento.imagen} alt={evento.title} fill className="absolute inset-0 object-cover" unoptimized />
         ) : (
-          <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${catColor}33, ${catColor}11)` }} />
+          <>
+            <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${catColor}33, ${catColor}11)` }} />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ backgroundColor: `${catColor}22` }}>
+                <span className="text-3xl">
+                  {evento.category === 'Académicos' ? '🎓' : evento.category === 'Culturales' ? '🎵' : evento.category === 'Deportivos' ? '⚽' : '💼'}
+                </span>
+              </div>
+            </div>
+          </>
         )}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ backgroundColor: `${catColor}22` }}>
-            <span className="text-3xl">
-              {evento.category === 'Académicos' ? '🎓' : evento.category === 'Culturales' ? '🎵' : evento.category === 'Deportivos' ? '⚽' : '💼'}
-            </span>
-          </div>
-        </div>
         {/* Badge de categoría */}
         <div className="absolute top-3 left-3">
           <span
