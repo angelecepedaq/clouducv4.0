@@ -5970,6 +5970,113 @@ avatars	avatars	\N	2026-06-07 02:33:01.629222+00	2026-06-07 02:33:01.629222+00	t
 \.
 
 
+-- ============================================================
+-- SECTION: PRIVACY, VERIFICATION AND ATTENDANCE CONFIRMATIONS
+-- ============================================================
+
+-- ALTER TABLE public.eventos
+ALTER TABLE ONLY "public"."eventos" ADD COLUMN IF NOT EXISTS "is_private" boolean DEFAULT false NOT NULL;
+ALTER TABLE ONLY "public"."eventos" ADD COLUMN IF NOT EXISTS "max_attendees" integer DEFAULT NULL;
+ALTER TABLE ONLY "public"."eventos" ADD COLUMN IF NOT EXISTS "is_published" boolean DEFAULT true NOT NULL;
+
+-- CREATE TABLE public.event_verification_codes
+CREATE TABLE IF NOT EXISTS "public"."event_verification_codes" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL PRIMARY KEY,
+    "user_id" "uuid" REFERENCES "public"."profiles"("id") ON DELETE CASCADE,
+    "code" "text" NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "expires_at" timestamp with time zone NOT NULL,
+    "used" boolean DEFAULT false NOT NULL
+);
+
+ALTER TABLE "public"."event_verification_codes" ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can read their own verification codes" ON "public"."event_verification_codes"
+    FOR SELECT TO "authenticated" USING (("auth"."uid"() = "user_id"));
+
+CREATE POLICY "Users can insert their own verification codes" ON "public"."event_verification_codes"
+    FOR INSERT TO "authenticated" WITH CHECK (("auth"."uid"() = "user_id"));
+
+CREATE POLICY "Users can update their own verification codes" ON "public"."event_verification_codes"
+    FOR UPDATE TO "authenticated" USING (("auth"."uid"() = "user_id")) WITH CHECK (("auth"."uid"() = "user_id"));
+
+-- CREATE TABLE public.simulated_emails
+CREATE TABLE IF NOT EXISTS "public"."simulated_emails" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL PRIMARY KEY,
+    "to_email" "text" NOT NULL,
+    "subject" "text" NOT NULL,
+    "body" "text" NOT NULL,
+    "qr_data" "text",
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+ALTER TABLE "public"."simulated_emails" ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can read simulated emails" ON "public"."simulated_emails"
+    FOR SELECT TO "authenticated" USING (true);
+
+CREATE POLICY "Users can insert simulated emails" ON "public"."simulated_emails"
+    FOR INSERT WITH CHECK (true);
+
+-- CREATE TABLE public.asistentes_evento
+CREATE TABLE IF NOT EXISTS "public"."asistentes_evento" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL PRIMARY KEY,
+    "evento_id" "uuid" REFERENCES "public"."eventos"("id") ON DELETE CASCADE NOT NULL,
+    "user_id" "uuid" REFERENCES "public"."profiles"("id") ON DELETE SET NULL,
+    "nombre" "text" NOT NULL,
+    "email" "text" NOT NULL,
+    "codigo_confirmacion" "text" NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    CONSTRAINT "unique_evento_email" UNIQUE ("evento_id", "email")
+);
+
+ALTER TABLE "public"."asistentes_evento" ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Creador del evento puede ver asistentes" ON "public"."asistentes_evento"
+    FOR SELECT TO "authenticated" USING (
+        (EXISTS (
+            SELECT 1 FROM "public"."eventos" WHERE (("id" = "evento_id") AND ("user_id" = "auth"."uid"()))
+        )) OR ("auth"."uid"() = "user_id")
+    );
+
+CREATE POLICY "Cualquiera puede registrarse" ON "public"."asistentes_evento"
+    FOR INSERT WITH CHECK (true);
+
+-- Enable Realtime for new tables
+ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."simulated_emails";
+ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."asistentes_evento";
+
+-- Auto-publicar eventos privados al alcanzar el umbral de confirmaciones
+CREATE OR REPLACE FUNCTION "public"."check_event_publish"()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  UPDATE public.eventos e
+  SET is_published = true
+  WHERE e.id = NEW.evento_id
+    AND e.is_private = true
+    AND e.is_published = false
+    AND e.max_attendees IS NOT NULL
+    AND (
+      SELECT COUNT(*)::integer
+      FROM public.asistentes_evento
+      WHERE evento_id = NEW.evento_id
+    ) >= e.max_attendees;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS "trg_check_event_publish" ON "public"."asistentes_evento";
+CREATE TRIGGER "trg_check_event_publish"
+  AFTER INSERT ON "public"."asistentes_evento"
+  FOR EACH ROW
+  EXECUTE FUNCTION "public"."check_event_publish"();
+
+
+
 --
 -- PostgreSQL database dump complete
 --

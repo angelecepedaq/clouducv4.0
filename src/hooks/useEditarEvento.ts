@@ -39,26 +39,22 @@ export function useEditarEvento(): UseEditarEventoResult {
       return false;
     }
 
-    // Combinar fecha + hora en un timestamp ISO
-    const startDateObj = new Date(`${datos.fecha.trim()}T${datos.hora.trim()}`);
-    const startDate = startDateObj.toISOString();
-    
-    // Calcular el end_date asumiendo una duración de 2 horas (para consistencia con la creación)
-    const endDateObj = new Date(startDateObj.getTime() + 2 * 60 * 60 * 1000);
-    const endDate = endDateObj.toISOString();
+    // Combinar fecha + hora en un timestamp ISO para start_date
+    const startDate = new Date(`${datos.fecha}T${datos.hora}`);
+    const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000);
 
     const payload: Record<string, unknown> = {
       title: datos.title.trim(),
       category: datos.category,
       description: datos.description.trim(),
-      start_date: startDate,
-      end_date: endDate,
+      start_date: startDate.toISOString(),
+      end_date: endDate.toISOString(),
       location: datos.location?.trim() || null,
     };
 
     // Only include imagen if provided (so we don't accidentally null existing image)
     if (Object.prototype.hasOwnProperty.call(datos, 'imagen')) {
-      payload.imagen = datos.imagen ?? null;
+      payload.imagen = datos.imagen ?? '/images/logo/imgucv.png';
     }
 
     const { error: supabaseError } = await supabase

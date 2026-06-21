@@ -25,15 +25,16 @@ export function useEventos(): UseEventosResult {
       setCargando(true);
       setError(null);
 
-      // 1. Fetch de los eventos
+      // 1. Fetch de los eventos con las columnas reales del esquema
       const { data, error: supabaseError } = await supabase
         .from('eventos')
-        .select('id, title, description, category, location, start_date, end_date, user_id, created_at, updated_at, imagen')
+        .select('id, title, description, category, location, start_date, end_date, user_id, created_at, updated_at, imagen, is_private, max_attendees, is_published')
         .order('created_at', { ascending: true });
 
       if (cancelado) return;
 
       if (supabaseError) {
+        console.error('Error Supabase (Select eventos):', supabaseError);
         setError('No se pudieron cargar los eventos. Intenta nuevamente.');
         setCargando(false);
         return;
@@ -80,9 +81,10 @@ export function useEventos(): UseEventosResult {
       // 4. Mapear al tipo Evento con el estado del usuario actual
       const eventosConEstado: Evento[] = rows.map((row) => ({
         ...row,
+        end_date: row.end_date || new Date(new Date(row.start_date).getTime() + 2 * 60 * 60 * 1000).toISOString(),
         likes_count: likesCountMap.get(row.id) || 0,
         guardado: guardadosSet.has(row.id),
-        like_local: likesSet.has(row.id)
+        like_local: likesSet.has(row.id),
       }));
 
       setEventos(eventosConEstado);

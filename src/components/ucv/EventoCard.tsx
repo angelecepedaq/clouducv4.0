@@ -149,13 +149,33 @@ const EventoCard: FC<EventoCardProps> = ({ evento, onClick }) => {
             </span>
           </div>
         </div>
-        {/* Badge de categoría */}
-        <div className="absolute top-3 left-3">
+        {/* Badge categoría sobre la imagen */}
+        <div className="absolute top-3 left-3 flex flex-col gap-1.5">
           <span
             className={`text-xs font-semibold text-white px-3 py-1 rounded-full ${badgeStyles[evento.category] ?? 'bg-primary'}`}
           >
             {evento.category}
           </span>
+          {evento.is_private && (
+            <span
+              className="text-[10px] font-bold text-white px-2.5 py-0.5 rounded-full flex items-center gap-1"
+              style={{ backgroundColor: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)', border: '1px solid rgba(217,70,239,0.4)' }}
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
+                <rect x="3" y="11" width="18" height="11" rx="2" stroke="#d946ef" strokeWidth="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="#d946ef" strokeWidth="2"/>
+              </svg>
+              Privado
+            </span>
+          )}
+          {evento.is_private && !evento.is_published && (
+            <span
+              className="text-[9px] font-bold px-2 py-0.5 rounded-full"
+              style={{ backgroundColor: 'rgba(245,158,11,0.85)', color: '#fff' }}
+            >
+              Pendiente
+            </span>
+          )}
         </div>
       </div>
 

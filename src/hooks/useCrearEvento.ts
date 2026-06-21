@@ -6,12 +6,15 @@ import type { Categoria } from '@/types/types';
 export interface NuevoEventoInput {
   title: string;
   category: Exclude<Categoria, 'Todos'>;
-  fecha: string;   // date string from input type="date" (YYYY-MM-DD)
-  hora: string;    // time string from input type="time" (HH:MM)
+  fecha: string;   // YYYY-MM-DD (del input date del formulario)
+  hora: string;    // HH:MM (del input time del formulario)
   description: string;
   location?: string;
-  id?: string; // optional pre-generated id
-  imagen?: string | null; // optional public URL
+  id?: string;
+  imagen?: string | null;
+  is_private?: boolean;
+  max_attendees?: number | null;
+  is_published?: boolean;
 }
 
 interface UseCrearEventoResult {
@@ -29,7 +32,6 @@ export function useCrearEvento(): UseCrearEventoResult {
     setGuardando(true);
     setError(null);
 
-    // Obtener el usuario autenticado para el user_id
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       setError('Debes iniciar sesión para crear un evento.');
@@ -37,42 +39,47 @@ export function useCrearEvento(): UseCrearEventoResult {
       return false;
     }
 
+    const isPrivate = datos.is_private ?? false;
+
+    if (isPrivate) {
+      if (!datos.max_attendees || datos.max_attendees < 1) {
+        setError('Los eventos privados requieren un número máximo de asistentes confirmados (mínimo 1).');
+        setGuardando(false);
+        return false;
+      }
+    }
+
     // Combinar fecha + hora en un timestamp ISO para start_date
-    const startDateObj = new Date(`${datos.fecha.trim()}T${datos.hora.trim()}`);
-    const startDate = startDateObj.toISOString();
+    const startDate = new Date(`${datos.fecha}T${datos.hora}`);
+    const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000); // +2 horas
 
-    // Como la base de datos requiere obligatoriamente un end_date, asumiremos
-    // por defecto que los eventos duran 2 horas.
-    const endDateObj = new Date(startDateObj.getTime() + 2 * 60 * 60 * 1000);
-    const endDate = endDateObj.toISOString();
-
-    const eventoId = datos.id ?? crypto.randomUUID();
+    const eventId = datos.id ?? crypto.randomUUID();
 
     const insertPayload: Record<string, unknown> = {
-      id: eventoId,
+      id: eventId,
       title: datos.title.trim(),
       category: datos.category,
       description: datos.description.trim(),
-      start_date: startDate,
-      end_date: endDate,
+      start_date: startDate.toISOString(),
+      end_date: endDate.toISOString(),
       user_id: user.id,
       location: datos.location?.trim() || null,
+      imagen: datos.imagen ?? '/images/logo/imgucv.png',
+      is_private: isPrivate,
+      max_attendees: isPrivate ? datos.max_attendees : null,
+      is_published: datos.is_published ?? true,
     };
 
-    if (Object.prototype.hasOwnProperty.call(datos, 'imagen')) {
-      insertPayload.imagen = datos.imagen ?? null;
-    }
-
     const { error: supabaseError } = await supabase.from('eventos').insert(insertPayload);
-
-    setGuardando(false);
 
     if (supabaseError) {
       console.error('Error Supabase (Insert):', supabaseError);
       setError(supabaseError.message || 'Error al crear el evento en la base de datos.');
+      setGuardando(false);
       return false;
     }
 
+    setGuardando(false);
     return true;
   };
 

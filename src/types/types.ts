@@ -19,7 +19,6 @@ export interface Profile {
 export interface EventoRow {
   id: string;
   title: string;
-  imagen?: string | null;
   description: string | null;
   category: string;
   location: string | null;
@@ -28,6 +27,10 @@ export interface EventoRow {
   user_id: string | null;
   created_at: string;
   updated_at: string;
+  imagen: string | null;
+  is_private: boolean;
+  max_attendees: number | null;
+  is_published: boolean;
 }
 
 // Tipo usado en la UI (extiende EventoRow con estado local de bookmark y like)
@@ -36,6 +39,7 @@ export interface Evento extends EventoRow {
   like_local?: boolean;
   likes_count?: number;
 }
+
 
 // Tipo para mensajes privados al administrador del evento
 export interface MensajeEvento {
@@ -68,4 +72,32 @@ export interface NotificacionRow {
   // Relaciones
   actor?: { username: string } | null;
   evento?: { title: string } | null;
+}
+
+export interface AsistenteEvento {
+  id: string;
+  evento_id: string;
+  user_id: string | null;
+  nombre: string;
+  email: string;
+  codigo_confirmacion: string;
+  created_at: string;
+}
+
+export interface SimulatedEmail {
+  id: string;
+  to_email: string;
+  subject: string;
+  body: string;
+  qr_data?: string | null;
+  created_at: string;
+}
+
+export interface EventVerificationCode {
+  id: string;
+  user_id: string;
+  code: string;
+  created_at: string;
+  expires_at: string;
+  used: boolean;
 }

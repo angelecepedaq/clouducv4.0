@@ -5,6 +5,8 @@ import { supabase } from '@/db/supabase';
 import type { EventoRow } from '@/types/types';
 import SeccionMensajes from '@/components/ucv/SeccionMensajes';
 import ModalAuth from '@/components/ucv/ModalAuth';
+import FormularioConfirmarAsistencia from '@/components/ucv/FormularioConfirmarAsistencia';
+import PanelAsistentesCreador from '@/components/ucv/PanelAsistentesCreador';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLikes } from '@/hooks/useLikes';
 import { toast } from 'sonner';
@@ -33,6 +35,27 @@ function formatHora(isoDate: string): string {
   } catch { return ''; }
 }
 
+type RawEventoRow = Record<string, unknown>;
+
+function normalizeEventoRow(row: RawEventoRow): EventoRow {
+  return {
+    id: typeof row.id === 'string' ? row.id : '',
+    title: typeof row.title === 'string' ? row.title : '',
+    description: typeof row.description === 'string' ? row.description : null,
+    category: typeof row.category === 'string' ? row.category : '',
+    location: typeof row.location === 'string' ? row.location : null,
+    start_date: typeof row.start_date === 'string' ? row.start_date : '',
+    end_date: typeof row.end_date === 'string' ? row.end_date : null,
+    user_id: typeof row.user_id === 'string' ? row.user_id : null,
+    created_at: typeof row.created_at === 'string' ? row.created_at : '',
+    updated_at: typeof row.updated_at === 'string' ? row.updated_at : typeof row.created_at === 'string' ? row.created_at : '',
+    imagen: typeof row.imagen === 'string' ? row.imagen : null,
+    is_private: typeof row.is_private === 'boolean' ? row.is_private : false,
+    max_attendees: typeof row.max_attendees === 'number' ? row.max_attendees : null,
+    is_published: typeof row.is_published === 'boolean' ? row.is_published : true,
+  };
+}
+
 const DetalleEventoPagina: FC<DetalleEventoPaginaProps> = ({ eventoId, onVolver }) => {
   const { user } = useAuth();
   const { toggleLike, likesCargando } = useLikes();
@@ -42,6 +65,8 @@ const DetalleEventoPagina: FC<DetalleEventoPaginaProps> = ({ eventoId, onVolver 
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState(false);
   const [authAbierto, setAuthAbierto] = useState(false);
+  const [confirmarAbierto, setConfirmarAbierto] = useState(false);
+  const [codigoConfirmacion, setCodigoConfirmacion] = useState<string | null>(null);
   
   const [likeOptimista, setLikeOptimista] = useState(false);
   const [likesContador, setLikesContador] = useState(0);
@@ -100,14 +125,14 @@ const DetalleEventoPagina: FC<DetalleEventoPaginaProps> = ({ eventoId, onVolver 
 
     supabase
       .from('eventos')
-      .select('id, title, description, category, location, start_date, end_date, user_id, created_at, updated_at, imagen')
+      .select('id, title, description, category, location, start_date, end_date, user_id, created_at, updated_at, imagen, is_private, max_attendees, is_published')
       .eq('id', eventoId)
       .maybeSingle()
       .then(async ({ data, error }) => {
         if (!activo) return;
         if (error || !data) { setErrorCarga(true); setCargando(false); return; }
         
-        const eventoData = data as EventoRow;
+        const eventoData = normalizeEventoRow(data);
         setEvento(eventoData);
         
         // Contar likes del evento
@@ -149,6 +174,31 @@ const DetalleEventoPagina: FC<DetalleEventoPaginaProps> = ({ eventoId, onVolver 
 
   const badge = evento ? (badgeStyles[evento.category] ?? { bg: 'rgba(168,85,247,0.18)', color: '#c084fc' }) : null;
   const catColor = evento ? (evento.category === 'Académicos' ? '#3B82F6' : evento.category === 'Culturales' ? '#D946EF' : evento.category === 'Deportivos' ? '#10B981' : '#F59E0B') : '#a855f7';
+  const esCreador = user && evento && evento.user_id === user.id;
+
+  const handleConfirmarAsistencia = () => {
+    if (!user) {
+      setAuthAbierto(true);
+      return;
+    }
+    setConfirmarAbierto(true);
+  };
+
+  const handleExitoConfirmacion = (codigo: string) => {
+    setCodigoConfirmacion(codigo);
+    toast.success('¡Asistencia confirmada! Revisa tu bandeja de correos en Perfil.');
+    // Recargar evento por si se publicó
+    supabase
+      .from('eventos')
+      .select('is_published')
+      .eq('id', eventoId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data && evento) {
+          setEvento({ ...evento, is_published: data.is_published });
+        }
+      });
+  };
 
   // ——— CARGANDO ———
   if (cargando) {
@@ -259,7 +309,21 @@ const DetalleEventoPagina: FC<DetalleEventoPaginaProps> = ({ eventoId, onVolver 
         <div className="px-4 pt-5 pb-6 flex flex-col gap-4">
 
           {/* Título */}
-          <h1 className="text-white font-bold text-xl leading-snug text-balance">{evento.title}</h1>
+          <div className="flex items-start justify-between gap-3">
+            <h1 className="text-white font-bold text-xl leading-snug text-balance flex-1">{evento.title}</h1>
+            {evento.is_private && (
+              <span
+                className="text-[10px] font-bold px-2.5 py-1 rounded-full shrink-0 flex items-center gap-1"
+                style={{ backgroundColor: 'rgba(217,70,239,0.18)', color: '#e879f9', border: '1px solid rgba(217,70,239,0.35)' }}
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
+                  <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" strokeWidth="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="currentColor" strokeWidth="2"/>
+                </svg>
+                Privado
+              </span>
+            )}
+          </div>
 
           {/* Descripción */}
           {evento.description && (
@@ -357,6 +421,53 @@ const DetalleEventoPagina: FC<DetalleEventoPaginaProps> = ({ eventoId, onVolver 
             )}
           </div>
 
+          {/* Confirmación exitosa */}
+          {codigoConfirmacion && (
+            <div
+              className="rounded-2xl p-4 flex flex-col items-center gap-3"
+              style={{ backgroundColor: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)' }}
+            >
+              <div
+                className="w-12 h-12 rounded-full flex items-center justify-center"
+                style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path d="M20 6L9 17L4 12" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <div className="text-center">
+                <p className="text-white font-bold text-sm">¡Asistencia confirmada!</p>
+                <p className="text-lavender text-xs mt-1">Tu código: <span className="font-mono font-bold text-emerald-400">{codigoConfirmacion}</span></p>
+                <p className="text-lavender text-[10px] mt-2">Revisa tu bandeja de correos en Perfil para ver el QR</p>
+              </div>
+            </div>
+          )}
+
+          {/* Botón confirmar asistencia (eventos privados) */}
+          {evento.is_private && !esCreador && !codigoConfirmacion && (
+            <button
+              onClick={handleConfirmarAsistencia}
+              className="w-full py-3.5 rounded-2xl text-sm font-bold text-white transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+              style={{ background: 'linear-gradient(135deg, #d946ef, #a855f7)' }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+                <polyline points="22 4 12 14.01 9 11.01" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Confirmar Asistencia
+            </button>
+          )}
+
+          {/* Panel del creador: asistentes confirmados */}
+          {evento.is_private && esCreador && (
+            <PanelAsistentesCreador
+              eventoId={evento.id}
+              eventoTitulo={evento.title}
+              maxAttendees={evento.max_attendees}
+              isPublished={evento.is_published}
+            />
+          )}
+
           {/* Separador */}
           <div style={{ height: '1px', backgroundColor: 'rgba(255,255,255,0.08)' }} />
 
@@ -370,6 +481,15 @@ const DetalleEventoPagina: FC<DetalleEventoPaginaProps> = ({ eventoId, onVolver 
 
       {/* Modal de autenticación */}
       <ModalAuth abierto={authAbierto} onCerrar={() => setAuthAbierto(false)} />
+
+      {/* Modal confirmar asistencia */}
+      <FormularioConfirmarAsistencia
+        abierto={confirmarAbierto}
+        eventoId={evento.id}
+        eventoTitulo={evento.title}
+        onCerrar={() => setConfirmarAbierto(false)}
+        onExito={handleExitoConfirmacion}
+      />
     </>
   );
 };

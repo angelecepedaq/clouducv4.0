@@ -7,10 +7,11 @@ import type { EventoRow } from '@/types/types';
 import ModalAuth from '@/components/ucv/ModalAuth';
 import FormularioEditarEvento from '@/components/ucv/FormularioEditarEvento';
 import DialogoConfirmarEliminar from '@/components/ucv/DialogoConfirmarEliminar';
+import BandejaCorreosSimulados from '@/components/ucv/BandejaCorreosSimulados';
 import { toast } from 'sonner';
 import { compressImage } from '@/utils/imageUtils';
 
-type TabType = 'creados' | 'guardados';
+type TabType = 'creados' | 'guardados' | 'correos';
 
 // Helpers
 function formatFechaCorta(isoDate: string): string {
@@ -25,13 +26,34 @@ function formatHora(isoDate: string): string {
   } catch { return ''; }
 }
 
+type RawEventoRow = Record<string, unknown>;
+
+function normalizeEventoRow(row: RawEventoRow): EventoRow {
+  return {
+    id: typeof row.id === 'string' ? row.id : '',
+    title: typeof row.title === 'string' ? row.title : '',
+    description: typeof row.description === 'string' ? row.description : null,
+    category: typeof row.category === 'string' ? row.category : '',
+    location: typeof row.location === 'string' ? row.location : null,
+    start_date: typeof row.start_date === 'string' ? row.start_date : '',
+    end_date: typeof row.end_date === 'string' ? row.end_date : null,
+    user_id: typeof row.user_id === 'string' ? row.user_id : null,
+    created_at: typeof row.created_at === 'string' ? row.created_at : '',
+    updated_at: typeof row.updated_at === 'string' ? row.updated_at : typeof row.created_at === 'string' ? row.created_at : '',
+    imagen: typeof row.imagen === 'string' ? row.imagen : null,
+    is_private: typeof row.is_private === 'boolean' ? row.is_private : false,
+    max_attendees: typeof row.max_attendees === 'number' ? row.max_attendees : null,
+    is_published: typeof row.is_published === 'boolean' ? row.is_published : true,
+  };
+}
+
 const PerfilPagina: FC = () => {
   const { user, profile, signOut, refreshProfile } = useAuth();
-  const [authAbierto, setAuthAbierto] = useState(false);
   const [tabActual, setTabActual] = useState<TabType>('guardados');
   const [misEventos, setMisEventos] = useState<EventoRow[]>([]);
   const [eventosGuardados, setEventosGuardados] = useState<EventoRow[]>([]);
   const [cargandoEventos, setCargandoEventos] = useState(false);
+  const [authAbierto, setAuthAbierto] = useState(false);
 
   // Estado para editar username
   const [editandoUsername, setEditandoUsername] = useState(false);
@@ -64,27 +86,28 @@ const PerfilPagina: FC = () => {
       // 1. Cargar eventos creados
       const { data: dataCreados } = await supabase
         .from('eventos')
-        .select('id, title, description, category, location, start_date, end_date, user_id, created_at, updated_at, imagen')
+        .select('id, title, description, category, location, start_date, end_date, user_id, created_at, updated_at, imagen, is_private, max_attendees, is_published')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(20);
         
-      setMisEventos(Array.isArray(dataCreados) ? (dataCreados as EventoRow[]) : []);
+      setMisEventos(Array.isArray(dataCreados) ? dataCreados.map((row) => normalizeEventoRow(row as RawEventoRow)) : []);
 
       // 2. Cargar eventos guardados
       const { data: dataGuardados } = await supabase
         .from('eventos_guardados')
-        .select('evento_id, created_at, eventos(id, title, description, category, location, start_date, end_date, user_id, created_at, updated_at)')
+        .select('evento_id, created_at, eventos(id, title, description, category, location, start_date, end_date, user_id, created_at, updated_at, imagen, is_private, max_attendees, is_published)')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
         
       if (Array.isArray(dataGuardados)) {
         const eventosExtractados = dataGuardados
-          .filter(g => g.eventos)
-          .map(g => {
-            const ev = g.eventos as unknown as EventoRow;
-            return ev;
-          });
+          .map((g) => {
+            const rawEvento = Array.isArray(g.eventos) ? g.eventos[0] : g.eventos;
+            if (!rawEvento || typeof rawEvento !== 'object') return null;
+            return normalizeEventoRow(rawEvento as RawEventoRow);
+          })
+          .filter((evento): evento is EventoRow => evento !== null);
           
         // Ordenar: eventos futuros primero
         eventosExtractados.sort((a, b) => {
@@ -419,23 +442,33 @@ const PerfilPagina: FC = () => {
           <div className="flex bg-white/5 rounded-xl p-1 mb-4 border border-white/10">
             <button
               onClick={() => setTabActual('guardados')}
-              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${
+              className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
                 tabActual === 'guardados' 
                   ? 'bg-white/10 text-white shadow-sm' 
                   : 'text-lavender hover:text-white hover:bg-white/5'
               }`}
             >
-              Guardados ({eventosGuardados.length})
+              Guardados
             </button>
             <button
               onClick={() => setTabActual('creados')}
-              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${
+              className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
                 tabActual === 'creados' 
                   ? 'bg-white/10 text-white shadow-sm' 
                   : 'text-lavender hover:text-white hover:bg-white/5'
               }`}
             >
-              Mis Creados ({misEventos.length})
+              Creados
+            </button>
+            <button
+              onClick={() => setTabActual('correos')}
+              className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
+                tabActual === 'correos' 
+                  ? 'bg-white/10 text-white shadow-sm' 
+                  : 'text-lavender hover:text-white hover:bg-white/5'
+              }`}
+            >
+              Correos
             </button>
           </div>
           
@@ -577,6 +610,11 @@ const PerfilPagina: FC = () => {
                 ))
               )}
             </div>
+          )}
+
+          {/* Tab: Bandeja de correos simulados */}
+          {tabActual === 'correos' && (
+            <BandejaCorreosSimulados />
           )}
         </div>
 

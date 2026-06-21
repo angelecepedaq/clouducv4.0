@@ -27,6 +27,8 @@ const inputStyle: React.CSSProperties = {
 const inputFocusClass =
   'w-full px-4 py-3 text-sm outline-none transition-colors placeholder:text-white/35 focus:border-purple-400/60';
 
+const DEFAULT_EVENT_IMAGE = '/images/logo/imgucv.png';
+
 // Estado inicial vacío del formulario
 const estadoInicial = {
   title: '',
@@ -35,6 +37,8 @@ const estadoInicial = {
   hora: '',
   description: '',
   location: '',
+  is_private: false,
+  max_attendees: '',
 };
 
 const FormularioEvento: FC<FormularioEventoProps> = ({ abierto, onCerrar, onExito }) => {
@@ -53,6 +57,8 @@ const FormularioEvento: FC<FormularioEventoProps> = ({ abierto, onCerrar, onExit
       setErrores({});
       setExito(false);
       resetError();
+      setImagenFile(null);
+      setImagenPreview(DEFAULT_EVENT_IMAGE);
       setTimeout(() => primerCampoRef.current?.focus(), 150);
     }
   }, [abierto]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -68,13 +74,19 @@ const FormularioEvento: FC<FormularioEventoProps> = ({ abierto, onCerrar, onExit
   }, [abierto, onCerrar]);
 
   const validar = (): boolean => {
-    const nuevosErrores: Partial<typeof estadoInicial> = {};
+    const nuevosErrores: Record<string, string | undefined> = {};
     if (!form.title.trim()) nuevosErrores.title = 'El título es requerido';
     if (!form.category) nuevosErrores.category = 'Selecciona una categoría' as string & CategoriaEvento;
     if (!form.fecha) nuevosErrores.fecha = 'La fecha es requerida';
     if (!form.hora) nuevosErrores.hora = 'La hora es requerida';
     if (!form.description.trim()) nuevosErrores.description = 'La descripción es requerida';
     else if (form.description.trim().length > 1000) nuevosErrores.description = 'La descripción no puede superar los 1000 caracteres';
+    if (form.is_private) {
+      const max = parseInt(form.max_attendees, 10);
+      if (!form.max_attendees || isNaN(max) || max < 1) {
+        nuevosErrores.max_attendees = 'Indica el número máximo de asistentes confirmados (mínimo 1)';
+      }
+    }
     setErrores(nuevosErrores);
     return Object.keys(nuevosErrores).length === 0;
   };
@@ -84,6 +96,7 @@ const FormularioEvento: FC<FormularioEventoProps> = ({ abierto, onCerrar, onExit
     if (!f) return;
     if (!f.type.startsWith('image/')) {
       setErrores((prev) => ({ ...prev, imagen: 'Por favor selecciona una imagen válida' }));
+      setImagenPreview(DEFAULT_EVENT_IMAGE);
       return;
     }
     setImagenFile(f);
@@ -93,7 +106,7 @@ const FormularioEvento: FC<FormularioEventoProps> = ({ abierto, onCerrar, onExit
 
   const handleRemoveImage = () => {
     setImagenFile(null);
-    setImagenPreview(null);
+    setImagenPreview(DEFAULT_EVENT_IMAGE);
     setErrores((prev) => ({ ...prev, imagen: undefined }));
   };
 
@@ -145,6 +158,8 @@ const FormularioEvento: FC<FormularioEventoProps> = ({ abierto, onCerrar, onExit
       hora: form.hora,
       description: form.description,
       location: form.location || undefined,
+      is_private: form.is_private,
+      max_attendees: form.is_private ? parseInt(form.max_attendees, 10) : null,
       ...(imagenUrl ? { imagen: imagenUrl } : {}),
     });
 
@@ -160,6 +175,10 @@ const FormularioEvento: FC<FormularioEventoProps> = ({ abierto, onCerrar, onExit
   const handleChange = (field: keyof typeof estadoInicial, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     if (errores[field]) setErrores((prev) => ({ ...prev, [field]: undefined }));
+  };
+
+  const setPrivado = (privado: boolean) => {
+    setForm((prev) => ({ ...prev, is_private: privado, max_attendees: privado ? prev.max_attendees : '' }));
   };
 
   if (!abierto) return null;
@@ -247,6 +266,11 @@ const FormularioEvento: FC<FormularioEventoProps> = ({ abierto, onCerrar, onExit
                   <p className="text-red-300 text-sm">{errorServidor}</p>
                 </div>
               )}
+
+              <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-white/70">
+                <p>Los campos marcados con <span className="text-red-400">*</span> son obligatorios.</p>
+                <p>Si no subes una imagen válida, se usará una imagen predeterminada para tu evento.</p>
+              </div>
 
               {/* Título */}
               <div>
@@ -352,8 +376,8 @@ const FormularioEvento: FC<FormularioEventoProps> = ({ abierto, onCerrar, onExit
                   <label className="block text-sm font-normal text-white/80">
                     Descripción del evento <span style={{ color: '#d946ef' }}>*</span>
                   </label>
-                  <span className={`text-xs ${form.description.length > 1000 ? 'text-red-400' : 'text-white/40'}`}>
-                    {form.description.length}/1000
+                  <span className={`text-xs ${form.description.length > 500 ? 'text-red-400' : 'text-white/40'}`}>
+                    {form.description.length}/500
                   </span>
                 </div>
                 <textarea
@@ -362,7 +386,7 @@ const FormularioEvento: FC<FormularioEventoProps> = ({ abierto, onCerrar, onExit
                   placeholder="Describe el evento..."
                   className={inputFocusClass + " resize-none min-h-[100px]"}
                   style={inputStyle}
-                  maxLength={1000}
+                  maxLength={500}
                 />
                 {errores.description && (
                   <p className="text-red-400 text-xs mt-1">{errores.description}</p>
@@ -386,6 +410,75 @@ const FormularioEvento: FC<FormularioEventoProps> = ({ abierto, onCerrar, onExit
                 />
               </div>
 
+              {/* Tipo de Evento: Público / Privado */}
+              <div>
+                <label className="block text-sm font-normal text-white/80 mb-2">
+                  Tipo de evento
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPrivado(false)}
+                    className="flex-1 py-3 rounded-xl text-xs font-semibold transition-all active:scale-95 flex flex-col items-center gap-1"
+                    style={
+                      !form.is_private
+                        ? { backgroundColor: 'rgba(59,130,246,0.18)', border: '1.5px solid #3B82F6', color: '#fff' }
+                        : { backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.6)' }
+                    }
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.8"/>
+                      <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="currentColor" strokeWidth="1.8"/>
+                    </svg>
+                    Público
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPrivado(true)}
+                    className="flex-1 py-3 rounded-xl text-xs font-semibold transition-all active:scale-95 flex flex-col items-center gap-1"
+                    style={
+                      form.is_private
+                        ? { backgroundColor: 'rgba(217,70,239,0.18)', border: '1.5px solid #d946ef', color: '#fff' }
+                        : { backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.6)' }
+                    }
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                      <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" strokeWidth="1.8"/>
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="currentColor" strokeWidth="1.8"/>
+                    </svg>
+                    Privado
+                  </button>
+                </div>
+                {form.is_private && (
+                  <p className="text-lavender text-[10px] mt-2 leading-relaxed">
+                    Los eventos privados se publican al alcanzar el número de asistentes confirmados indicado.
+                  </p>
+                )}
+              </div>
+
+              {/* Máximo de asistentes (solo privado) */}
+              {form.is_private && (
+                <div>
+                  <label className="block text-sm font-normal text-white/80 mb-1.5">
+                    Máx. asistentes confirmados para publicar <span style={{ color: '#d946ef' }}>*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={10000}
+                    value={form.max_attendees}
+                    onChange={(e) => handleChange('max_attendees', e.target.value)}
+                    placeholder="Ej: 50"
+                    className={inputFocusClass}
+                    style={inputStyle}
+                  />
+                  {errores.max_attendees && (
+                    <p className="text-red-400 text-xs mt-1">{errores.max_attendees}</p>
+                  )}
+                </div>
+              )}
+
+
               {/* Imagen del evento (opcional) */}
               <div>
                 <label className="block text-sm font-normal text-white/80 mb-1.5">
@@ -398,6 +491,9 @@ const FormularioEvento: FC<FormularioEventoProps> = ({ abierto, onCerrar, onExit
                     </div>
                   ) : (
                     <div className="w-20 h-14 rounded-md" style={{ backgroundColor: 'rgba(255,255,255,0.04)' }} />
+                  )}
+                  {errores.imagen && (
+                    <p className="text-red-400 text-xs mt-1">{errores.imagen}</p>
                   )}
                   <div className="flex-1">
                     <label
